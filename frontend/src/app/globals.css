@@ -1,0 +1,445 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+/* ============================================================
+   CSS Custom Properties — AI Helpdesk Design System
+   ============================================================ */
+
+:root {
+  /* Surface colors */
+  --surface: #13131b;
+  --surface-dim: #13131b;
+  --surface-bright: #393841;
+  --surface-container-lowest: #0d0d15;
+  --surface-container-low: #1b1b23;
+  --surface-container: #1f1f27;
+  --surface-container-high: #292932;
+  --surface-container-highest: #34343d;
+  --on-surface: #e4e1ed;
+  --on-surface-variant: #c7c4d7;
+
+  /* Brand colors (violet) */
+  --brand-50: #F4F1FF;
+  --brand-100: #EAE4FF;
+  --brand-200: #D4C9FF;
+  --brand-400: #9B85F5;
+  --brand-500: #7C5CFA;
+  --brand-600: #6340E8;
+  --brand-700: #4D2EC4;
+  --primary: #7C5CFA;
+  --primary-hover: #6340E8;
+
+  /* Accent colors (amber) */
+  --accent-300: #FCD97A;
+  --accent-400: #F5B942;
+  --accent-500: #E89B1A;
+  --accent-600: #C47A0A;
+
+  /* Status colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #f43f5e;
+  --emerald: #10b981;
+  --rose: #f43f5e;
+
+  /* Outline */
+  --outline: #908fa0;
+  --outline-variant: #464554;
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --header-height: 64px;
+  --container-padding: 24px;
+  --bento-gap: 20px;
+  --radius: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+/* ============================================================
+   Global Styles
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--surface);
+  color: var(--on-surface);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Glassmorphism Utilities
+   ============================================================ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-hover:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* Subtle top-edge shine on cards */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(192, 193, 255, 0.25), transparent);
+  border-radius: 50%;
+}
+
+/* ============================================================
+   Gradient Utilities
+   ============================================================ */
+
+.gradient-primary {
+  background: linear-gradient(135deg, var(--indigo), var(--violet));
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--violet) 50%, #a855f7 100%);
+}
+
+/* ============================================================
+   Button Styles
+   ============================================================ */
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--indigo), var(--violet));
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover::after {
+  opacity: 1;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--on-surface);
+  border: 1px solid var(--outline-variant);
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--outline);
+}
+
+/* ============================================================
+   Input Styles
+   ============================================================ */
+
+.input-field {
+  width: 100%;
+  padding: 11px 16px 11px 42px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius);
+  color: var(--on-surface);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  outline: none;
+}
+
+.input-field::placeholder {
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+}
+
+.input-field:hover:not(:focus) {
+  border-color: var(--outline);
+}
+
+.input-field:focus {
+  border-color: var(--indigo);
+  background: rgba(99, 102, 241, 0.06);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Error state */
+.input-field.error {
+  border-color: rgba(244, 63, 94, 0.6);
+  background: rgba(244, 63, 94, 0.04);
+}
+
+.input-field.success {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+textarea.input-field {
+  resize: vertical;
+  min-height: 100px;
+  padding-left: 16px;
+}
+
+/* Password toggle button */
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.pw-toggle:hover {
+  opacity: 1;
+}
+
+/* ============================================================
+   Alert Styles
+   ============================================================ */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  line-height: 1.5;
+  animation: alert-in 0.2s ease-out;
+}
+
+.alert-error {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  color: #ff8a9b;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.alert-info {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: var(--primary);
+}
+
+/* ============================================================
+   Password Strength Meter
+   ============================================================ */
+
+.strength-meter {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--outline-variant);
+  transition: background 0.3s ease;
+}
+
+.strength-bar.s1 { background: var(--rose); }
+.strength-bar.s2 { background: var(--amber); }
+.strength-bar.s3 { background: #84cc16; }
+.strength-bar.s4 { background: var(--emerald); }
+
+/* ============================================================
+   Badge Styles
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ============================================================
+   Divider
+   ============================================================ */
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--outline);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--outline-variant);
+}
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.25); }
+  50%       { box-shadow: 0 0 36px rgba(99, 102, 241, 0.5); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes alert-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in   { animation: fadeIn 0.4s ease-out; }
+.animate-slide-in  { animation: slideInRight 0.3s ease-out; }
+.animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+.animate-spin      { animation: spin 0.75s linear infinite; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-container) 25%,
+    var(--surface-container-high) 50%,
+    var(--surface-container) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius);
+}

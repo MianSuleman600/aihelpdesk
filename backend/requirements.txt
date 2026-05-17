@@ -1,0 +1,110 @@
+# ==============================================================================
+# AI-Powered Helpdesk — Python Dependencies
+# Fixed: 2025-05 | Python >=3.9,<4.0
+# ==============================================================================
+# BUGS FIXED (4 issues from original file):
+#
+# BUG 1 — postgrest-py==0.15.1 does not exist on PyPI.
+#   Root cause: the package was RENAMED. "postgrest-py" topped out at 0.10.6.
+#   The successor package is simply "postgrest" (now at 2.30.0).
+#   Fix: remove the explicit pin entirely. supabase==2.4.0 declares
+#        Requires-Dist: postgrest (>=0.10.8,<0.17.0) and will resolve it.
+#   → Removed: postgrest-py==0.15.1
+#
+# BUG 2 — httpx==0.28.1 conflicts with supabase==2.4.0.
+#   supabase 2.4.0 declares Requires-Dist: httpx (>=0.24,<0.26).
+#   httpx 0.28.1 is outside that range → pip would reject the combination.
+#   Fix: pin httpx to the highest version inside supabase's allowed range.
+#   → Changed: httpx==0.28.1 → httpx==0.25.2
+#
+# BUG 3 — bcrypt==4.2.1 is incompatible with passlib==1.7.4.
+#   passlib 1.7.4 calls bcrypt.__about__.__version__ at import time.
+#   bcrypt removed __about__ in v4.0.0 → AttributeError crash on startup.
+#   Fix: pin bcrypt to the last compatible 3.x release (3.2.2).
+#   passlib[bcrypt] requires bcrypt>=3.1.0, so 3.2.2 satisfies it cleanly.
+#   → Changed: bcrypt==4.2.1 → bcrypt==3.2.2
+#
+# BUG 4 — langchain-openai==0.3.0 is mismatched with langchain==0.3.14.
+#   langchain 0.3.14 pulls langchain-core>=0.3.29. langchain-openai 0.3.0
+#   requires langchain-core>=0.3.0,<0.4 — overlapping but the 0.3.x openai
+#   series diverged its versioning in 1.x. Using the 0.3.x openai adapter
+#   alongside the 0.3.x langchain base is fine; the mismatch is aesthetic
+#   but can cause sub-dependency resolver conflicts. Pinned to 0.3.14 to
+#   keep the entire langchain ecosystem on the same minor version.
+#   → Changed: langchain-openai==0.3.0 → langchain-openai==0.3.14
+# ==============================================================================
+
+
+# === Core Framework ===
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.18
+
+
+# === Database & ORM ===
+sqlalchemy==2.0.36
+alembic==1.14.1
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+
+
+# === Supabase ===
+# NOTE: do NOT pin postgrest-py — it no longer exists under that name.
+# supabase itself declares: postgrest (>=0.10.8,<0.17.0) — let it resolve.
+supabase==2.4.0
+
+
+# === Authentication ===
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# FIX BUG 3: passlib 1.7.4 calls bcrypt.__about__ which was removed in bcrypt 4.x.
+# Must stay on 3.x until passlib releases a compatibility fix.
+bcrypt==3.2.2
+
+
+# === AI / RAG ===
+# FIX BUG 4: pin all three langchain packages to the same 0.3.x minor series.
+langchain==0.3.14
+langchain-openai==0.3.14
+langchain-community==0.3.14
+openai>=1.68.2
+tiktoken>=0.13.0
+
+
+# === Pinecone Vector DB ===
+# pinecone-client and pinecone are the SAME package — Pinecone unified them.
+# pinecone-client==5.0.1 is a valid alias, but "pinecone" is the canonical name.
+# Either works; keeping pinecone-client here since 5.0.1 exists under that name.
+pinecone-client==5.0.1
+
+
+# === File Storage ===
+cloudinary==1.41.0
+python-dotenv==1.0.1
+
+
+# === HTTP Client ===
+# FIX BUG 2: supabase==2.4.0 requires httpx>=0.24,<0.26. Pin to highest in range.
+httpx==0.25.2
+
+
+# === WebSockets ===
+websockets<13.0
+
+
+# === Utilities ===
+pydantic==2.10.4
+pydantic-settings==2.7.1
+email-validator==2.2.0
+python-dateutil==2.9.0
+
+
+# === PDF Processing ===
+pypdf==5.1.0
+
+
+# === Testing ===
+pytest==8.3.4
+pytest-asyncio==0.24.0
+# NOTE: httpx is already pinned above — httpx is also the test client for FastAPI.
+# Both constraints are satisfied by httpx==0.25.2.
