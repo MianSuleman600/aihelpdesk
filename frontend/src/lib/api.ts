@@ -1,10 +1,11 @@
 import { apiClient, tokenUtils } from './apiClient';
 import { ENDPOINTS } from '@/constants/endpoints';
 import type {
-  User, Category, KBArticle, KBArticleCreate,
+  User, UserBrief, Category, KBArticle, KBArticleCreate,
   Ticket, TicketCreate, TicketUpdate, TicketAssign, TicketMessage,
   AIChatResponse, Notification, AnalyticsOverview, AIFeedbackCreate,
   TokenResponse, UploadedDocument, DocumentListResponse,
+  UserSettings, UserSettingsUpdate,
 } from '@/types';
 
 export { tokenUtils };
@@ -37,6 +38,18 @@ export const authAPI = {
 
   resetPassword: async (token: string, password: string): Promise<{ message: string }> => {
     return apiClient.post<{ message: string }>(ENDPOINTS.auth.resetPassword, { token, password });
+  },
+
+  updateProfile: async (data: { name?: string; email?: string }): Promise<User> => {
+    return apiClient.patch<User>(ENDPOINTS.auth.me, data);
+  },
+
+  changePassword: async (old_password: string, new_password: string): Promise<{ message: string }> => {
+    return apiClient.post<{ message: string }>(ENDPOINTS.auth.changePassword, { old_password, new_password });
+  },
+
+  deleteAccount: async (): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(ENDPOINTS.auth.me);
   },
 };
 
@@ -80,6 +93,7 @@ export const ticketsAPI = {
   getAll: async (params?: {
     status?: string;
     assigned_to_me?: boolean;
+    category_id?: string;
     skip?: number;
     limit?: number;
   }): Promise<Ticket[]> => {
@@ -183,8 +197,33 @@ export const documentsAPI = {
   },
 };
 
+export const adminAPI = {
+  listUsers: async (search?: string) => {
+    return apiClient.get<User[]>(ENDPOINTS.admin.users, search ? { search } as Record<string, string> : undefined);
+  },
+  toggleUserStatus: async (userId: string) => {
+    return apiClient.patch(ENDPOINTS.admin.userToggleStatus(userId), {});
+  },
+  updateUserRole: async (userId: string, role: string) => {
+    return apiClient.patch(`${ENDPOINTS.admin.userRole(userId)}?role=${role}`, {});
+  },
+  getAgents: async (): Promise<UserBrief[]> => {
+    return apiClient.get<UserBrief[]>(`${ENDPOINTS.admin.users}?role=agent`);
+  },
+};
+
+export const settingsAPI = {
+  get: async (): Promise<UserSettings> => {
+    return apiClient.get<UserSettings>(ENDPOINTS.settings.get);
+  },
+
+  update: async (data: UserSettingsUpdate): Promise<UserSettings> => {
+    return apiClient.patch<UserSettings>(ENDPOINTS.settings.update, data);
+  },
+};
+
 export const analyticsAPI = {
-  getOverview: async (): Promise<AnalyticsOverview> => {
-    return apiClient.get<AnalyticsOverview>(ENDPOINTS.admin.analytics);
+  getOverview: async (period?: string): Promise<AnalyticsOverview> => {
+    return apiClient.get<AnalyticsOverview>(ENDPOINTS.admin.analytics, period ? { period } as Record<string, string> : undefined);
   },
 };

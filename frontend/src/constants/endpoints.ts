@@ -7,6 +7,7 @@ export const ENDPOINTS = {
     me: '/auth/me',
     forgotPassword: '/auth/forgot-password',
     resetPassword: '/auth/reset-password',
+    changePassword: '/auth/change-password',
   },
   kb: {
     list: '/kb/articles',
@@ -41,6 +42,8 @@ export const ENDPOINTS = {
     analytics: '/analytics/overview',
     users: '/admin/users',
     userDetail: (id: string) => `/admin/users/${id}`,
+    userRole: (id: string) => `/admin/users/${id}/role`,
+    userToggleStatus: (id: string) => `/admin/users/${id}/toggle-status`,
   },
   documents: {
     list: '/documents',
@@ -48,6 +51,10 @@ export const ENDPOINTS = {
     upload: '/documents/upload',
     delete: (id: string) => `/documents/${id}`,
     reindex: (id: string) => `/documents/${id}/reindex`,
+  },
+  settings: {
+    get: '/settings',
+    update: '/settings',
   },
 } as const;
 

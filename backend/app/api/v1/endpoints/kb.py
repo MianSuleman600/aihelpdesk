@@ -142,3 +142,4 @@ async def delete_article(
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     await db.delete(article)
+    await db.flush()

@@ -1,0 +1,169 @@
+================================================================
+Starbit Games - Game Development Platform Guide
+================================================================
+
+1. PLATFORM OVERVIEW
+================================================================
+Starbit Games Development Platform (SGDP) is the internal system used by all
+development teams to manage game projects, assets, builds, and deployments.
+
+Key features:
+- Project management and sprint tracking
+- Asset library with version control
+- Build pipeline automation
+- Deployment management (staging, production)
+- Bug tracking integrated with support tickets
+- Performance monitoring and analytics
+
+Access the platform at: https://sgdp.starbitgames.com
+Platform support contact: sgdp-support@starbitgames.com
+
+2. PROJECT MANAGEMENT
+================================================================
+
+2.1 Creating a New Project
+  1. Go to SGDP > Projects > Create New Project
+  2. Fill in: Project name, description, team members, target platform
+  3. Select project template (Mobile, PC, Console, Cross-Platform)
+  4. Set sprint length (default: 2 weeks)
+  5. Choose repository type (GitHub, GitLab, or Bitbucket)
+  6. Click "Create Project"
+  7. Project dashboard will be generated automatically
+  8. Invite team members using their Starbit email addresses
+
+2.2 Sprint Management
+- Sprints are 2 weeks by default (configurable per project)
+- Sprint planning happens every other Monday at 10:00 AM
+- Daily standup: 15 minutes, 9:30 AM (team decides format)
+- Sprint review: last Friday of sprint, 2:00 PM
+- Retrospective: after sprint review, 3:00 PM
+- Burn-down charts available in project dashboard
+- Velocity tracked automatically across sprints
+
+2.3 Bug Tracking
+Bugs are tracked within the SGDP system and synced with the Helpdesk.
+
+Bug priority levels:
+  Critical: Game crashes, blocking further development (fix within 4 hours)
+  High: Major feature broken, no workaround (fix within 24 hours)
+  Medium: Feature partially broken, workaround available (fix within 1 week)
+  Low: Minor issue, cosmetic, nice-to-have (fix when time permits)
+
+Bug status workflow:
+  New -> Triaged -> Assigned -> In Progress -> Fixed -> Verified -> Closed
+
+To report a bug:
+  1. Go to project page
+  2. Click "Report Bug"
+  3. Fill in: title, description, steps to reproduce, expected vs actual behavior
+  4. Attach screenshots or video if applicable
+  5. Select priority level
+  6. Submit
+
+3. ASSET MANAGEMENT
+================================================================
+
+3.1 Asset Library
+- Centralized repository for all game assets
+- Supported formats:
+  - 3D Models: FBX, GLTF, GLB, OBJ (max 500 MB per file)
+  - Textures: PNG, TGA, EXR, HDR (max 100 MB per file)
+  - Audio: WAV, MP3, OGG, FLAC (max 50 MB per file)
+  - Animations: FBX, BVH (max 200 MB per file)
+  - Documents: PDF, DOCX (max 25 MB per file)
+
+3.2 Asset Version Control
+- Each asset has its own version history
+- Major version: breaking changes (1.0, 2.0, 3.0)
+- Minor version: additive changes (1.1, 1.2, 1.3)
+- Patch version: fixes, optimizations (1.0.1, 1.0.2)
+- Assets can be locked by one user at a time (prevents conflicts)
+- All changes are logged with user, timestamp, and description
+- Rollback to any previous version is supported
+
+3.3 Asset Naming Convention
+All assets must follow this naming convention:
+  {Category}_{Project}_{Description}_v{Version}.{ext}
+
+Examples:
+  Character_StarQuest_PlayerFemale_v2.fbx
+  Environment_StarQuest_ForestFloor_v1_1.png
+  Audio_StarQuest_BattleMusic_v3_2.wav
+
+Categories: Character, Environment, UI, Audio, Animation, VFX, Concept
+
+4. BUILD AND DEPLOYMENT
+================================================================
+
+4.1 Build Pipeline
+The automated build pipeline runs on every commit to the main branch.
+
+Pipeline stages:
+  1. Code compilation (all platforms)
+  2. Unit tests (must pass 100%)
+  3. Integration tests
+  4. Asset validation
+  5. Build packaging
+  6. Performance benchmarks
+  7. Deployment to staging environment
+
+Build types:
+  Development: Daily builds, includes debug symbols
+  Staging: Release candidate, QA tested
+  Production: Final build, signed and distributed
+
+Average build times:
+  Mobile: 15-30 minutes
+  PC: 30-60 minutes
+  Console: 45-90 minutes
+
+4.2 Deployment Environments
+Development (dev.sgdplatform.com):
+  - Latest code, may be unstable
+  - Internal testing only
+  - Database resets weekly
+
+Staging (staging.sgdplatform.com):
+  - Release candidate code
+  - QA team testing
+  - Performance testing
+  - Database: production snapshot
+
+Production (sgdplatform.com):
+  - Live, customer-facing
+  - Strict change control
+  - Deployments: Tuesday/Thursday only
+  - Rollback plan required for every deployment
+
+4.3 Hotfix Process
+For critical issues requiring immediate deployment:
+  1. Create hotfix branch from main
+  2. Apply fix with minimal changes
+  3. Code review by 2 senior developers (required)
+  4. Run full test suite
+  5. Deploy to staging for verification
+  6. Deploy to production
+  7. Post-mortem within 24 hours
+
+5. PERFORMANCE MONITORING
+================================================================
+
+5.1 Key Metrics Tracked
+- Frame rate (target: 60 FPS for PC/console, 30 FPS for mobile)
+- Memory usage (target: under 4 GB for PC, under 2 GB for mobile)
+- Load times (target: under 10 seconds for initial load)
+- Crash rate (target: under 0.5% of sessions)
+- Network latency (target: under 100ms for multiplayer)
+- API response times (target: under 200ms)
+
+5.2 Monitoring Tools
+- Real-time dashboard at: https://monitor.stgdplatform.com
+- Alerts configured for all critical metrics
+- Weekly performance reports emailed to team leads
+- Monthly performance review with management
+
+================================================================
+Last Updated: May 2026
+Document Version: 2.0
+Owner: Game Development Team, Starbit Games
+================================================================

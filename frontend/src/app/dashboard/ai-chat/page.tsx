@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { aiAPI } from "@/lib/api";
+import { aiAPI, tokenUtils } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/constants";
 import type { AIChatSource } from "@/types";
 import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 
@@ -63,12 +64,12 @@ export default function AIChatPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/ai/chat/stream`,
+        `${API_BASE_URL}/ai/chat/stream`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("helpdesk_token")}`,
+            Authorization: `Bearer ${tokenUtils.get()}`,
           },
           body: JSON.stringify({ query, session_id: sessionId }),
         }

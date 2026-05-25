@@ -121,8 +121,8 @@ class DocumentProcessor:
             if not text.strip():
                 return {"status": "failed", "chunk_count": 0, "error": "No text could be extracted from the document"}
 
-            # 2. Chunk text
-            chunks = EmbeddingService.chunk_text(text, chunk_size=512, overlap=50)
+            # 2. Chunk text with semantic boundaries
+            chunks = EmbeddingService.semantic_chunk_text(text, max_tokens=512)
             if not chunks:
                 return {"status": "failed", "chunk_count": 0, "error": "Document too short after chunking"}
 

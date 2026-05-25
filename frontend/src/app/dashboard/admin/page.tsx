@@ -16,8 +16,8 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (user?.role !== "admin") { router.replace("/dashboard"); return; }
-    analyticsAPI.getOverview().then(setData).catch(()=>{}).finally(()=>setLoading(false));
-  }, [user, router]);
+    analyticsAPI.getOverview(period).then(setData).catch((e) => console.error(e)).finally(()=>setLoading(false));
+  }, [user, router, period]);
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={32} className="animate-spin text-[var(--primary)]"/></div>;
 

@@ -1,0 +1,122 @@
+================================================================
+Starbit Games - Account & Security Guide
+================================================================
+
+1. CREATING AN ACCOUNT
+================================================================
+- Visit https://portal.starbitgames.com/register
+- Use your company email address (@starbitgames.com)
+- Choose a strong password (minimum 10 characters, at least 1 uppercase, 1 lowercase, 1 number, 1 special character)
+- Verify your email within 24 hours by clicking the confirmation link
+- Set up your security questions (these are used for account recovery)
+- Complete your profile: full name, department, job title, phone number
+
+2. LOGIN TROUBLESHOOTING
+================================================================
+Common login errors and solutions:
+
+Error "Invalid credentials":
+  - Check that Caps Lock is off (passwords are case-sensitive)
+  - Ensure you are using the correct email format (user@starbitgames.com)
+  - Try clearing your browser cache and cookies
+  - Reset your password using the "Forgot Password" link
+
+Error "Account locked":
+  - Account locks after 5 failed login attempts within 15 minutes
+  - Lockout duration: 30 minutes (automatic unlock)
+  - Contact IT support at it-support@starbitgames.com for manual unlock
+  - You can still use "Forgot Password" while locked
+
+Error "Session expired":
+  - Sessions timeout after 60 minutes of inactivity
+  - Simply log in again to continue
+  - Check "Remember Me" to extend session to 7 days
+
+3. PASSWORD RESET PROCESS
+================================================================
+Step-by-step:
+  1. Go to https://portal.starbitgames.com/login
+  2. Click "Forgot Password" link below the login button
+  3. Enter your registered email address
+  4. Check your inbox for a password reset email (sent within 2 minutes)
+  5. Click the reset link (expires after 15 minutes for security)
+  6. Create a new password (cannot reuse last 5 passwords)
+  7. Confirm the new password
+  8. You will receive a confirmation email
+  9. Log in with your new password
+
+If you don't receive the email:
+  - Check your Spam/Junk folder
+  - Add no-reply@starbitgames.com to your contacts
+  - Try the "Resend Email" option after 5 minutes
+  - Contact IT if you still don't receive it after 3 attempts
+
+4. TWO-FACTOR AUTHENTICATION (2FA)
+================================================================
+2FA is mandatory for all admin, finance, and HR accounts.
+Optional for standard user accounts.
+
+Setup process:
+  1. Log in to your account
+  2. Go to Settings > Security > Enable Two-Factor Authentication
+  3. Install Google Authenticator or Microsoft Authenticator on your phone
+  4. Scan the QR code displayed on screen
+  5. Enter the 6-digit code from your authenticator app
+  6. Save your 10 backup codes (stored in a secure location)
+  7. Confirm setup by entering another code from the app
+
+If you lose access to your authenticator app:
+  - Use one of your 10 backup codes
+  - Contact IT support to reset 2FA (identity verification required)
+  - Allow 24-48 hours for 2FA reset processing
+
+5. ACCOUNT RECOVERY
+================================================================
+If you cannot access your account:
+  1. Use "Forgot Password" for password reset (works even if locked out)
+  2. If you changed your phone number or email without updating your profile:
+     - Contact your department manager for verification
+     - Manager submits IT support ticket with verification
+     - IT will recover the account within 1 business day
+  3. For complete account recovery (lost all access):
+     - Submit ticket to IT support with subject "Account Recovery"
+     - Provide: full name, employee ID, department, manager's name
+     - IT will verify your identity via video call
+     - Recovery completed within 2 business days
+
+6. SECURITY BEST PRACTICES
+================================================================
+- Never share your password with anyone (IT will never ask for your password)
+- Use a password manager (Starbit recommends Bitwarden or 1Password)
+- Change your password every 90 days
+- Enable 2FA on all accounts
+- Log out when using shared or public computers
+- Report suspicious activity to security@starbitgames.com immediately
+- Lock your computer when leaving your desk (Windows+L)
+- Do not use the same password for work and personal accounts
+
+7. ACCESS LEVELS AND PERMISSIONS
+================================================================
+Standard User:
+  - Access to portal, knowledge base, AI assistant
+  - Create and view own support tickets
+  - Browse published knowledge base articles
+
+Agent:
+  - All Standard User permissions
+  - Create and publish knowledge base articles
+  - Manage all support tickets (assign, update status, respond)
+  - Upload documents for AI training
+
+Admin:
+  - All Agent permissions
+  - Manage user accounts (create, deactivate, change roles)
+  - View analytics dashboard
+  - System configuration access
+  - Delete knowledge base articles and documents
+
+================================================================
+Last Updated: May 2026
+Document Version: 2.1
+Owner: IT Security Team, Starbit Games
+================================================================

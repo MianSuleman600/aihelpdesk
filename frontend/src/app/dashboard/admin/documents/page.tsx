@@ -52,8 +52,8 @@ export default function AdminDocumentsPage() {
       const res = await documentsAPI.list()
       setDocuments(res.documents)
       setMaxDocs(res.max_documents)
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false)
     }
@@ -82,8 +82,8 @@ export default function AdminDocumentsPage() {
     try {
       await documentsAPI.delete(id)
       setDocuments((prev) => prev.filter((d) => d.id !== id))
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -98,8 +98,8 @@ export default function AdminDocumentsPage() {
             : d,
         ),
       )
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error(e);
     } finally {
       setReindexingId(null)
     }

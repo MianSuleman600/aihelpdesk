@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
-  avatar_url TEXT,
   role TEXT CHECK (role IN ('admin', 'agent', 'customer')) DEFAULT 'customer',
   department TEXT,
   status TEXT CHECK (status IN ('active', 'inactive', 'suspended')) DEFAULT 'active',

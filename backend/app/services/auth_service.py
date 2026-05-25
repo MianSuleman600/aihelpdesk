@@ -3,6 +3,7 @@ Authentication service layer for handling user auth operations.
 Uses local PostgreSQL for all user management.
 """
 
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
@@ -14,6 +15,29 @@ from app.schemas.schemas import UserRegister, UserResponse, Token
 from app.core.security import hash_password, verify_password, create_access_token, decode_access_token
 
 
+def validate_password_strength(password: str) -> None:
+    """
+    Validate password strength requirements.
+    Raises HTTPException if password is too weak.
+    """
+    errors = []
+    if len(password) < 8:
+        errors.append("at least 8 characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("one uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("one lowercase letter")
+    if not re.search(r"\d", password):
+        errors.append("one number")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=~`\[\];'\\/]", password):
+        errors.append("one special character")
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Password must contain: {', '.join(errors)}",
+        )
+
+
 class AuthService:
     """Service layer for authentication operations."""
 
@@ -22,6 +46,7 @@ class AuthService:
         user_data: UserRegister,
         db: AsyncSession,
     ) -> Dict[str, Any]:
+        validate_password_strength(user_data.password)
         result = await db.execute(select(User).where(User.email == user_data.email))
         if result.scalar_one_or_none():
             raise HTTPException(
@@ -33,7 +58,7 @@ class AuthService:
             name=user_data.name,
             email=user_data.email,
             password_hash=hash_password(user_data.password),
-            role=user_data.role,
+            role=UserRole.USER,
         )
         db.add(user)
         await db.commit()
@@ -120,6 +145,7 @@ class AuthService:
         new_password: str,
         db: AsyncSession,
     ) -> Dict[str, str]:
+        validate_password_strength(new_password)
         payload = decode_access_token(token)
         if not payload or payload.get("purpose") != "password_reset":
             raise HTTPException(
@@ -154,7 +180,7 @@ class AuthService:
     async def update_user_profile(
         user_id: str,
         name: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        email: Optional[str] = None,
         db: AsyncSession = None,
     ) -> UserResponse:
         result = await db.execute(select(User).where(User.id == user_id))
@@ -166,10 +192,16 @@ class AuthService:
                 detail="User not found",
             )
 
-        if name:
+        if name is not None:
             user.name = name
-        if avatar_url:
-            user.avatar_url = avatar_url
+        if email is not None:
+            existing = await db.execute(select(User).where(User.email == email, User.id != user_id))
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already in use",
+                )
+            user.email = email
 
         user.updated_at = datetime.now(timezone.utc)
         await db.commit()
@@ -184,6 +216,7 @@ class AuthService:
         new_password: str,
         db: AsyncSession,
     ) -> Dict[str, str]:
+        validate_password_strength(new_password)
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 

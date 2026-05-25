@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { authAPI, tokenUtils } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,11 +18,17 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const response = await authAPI.login(email, password);
-      tokenUtils.set(response.access_token);
+      await login(email, password);
       router.push('/dashboard');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid email or password';

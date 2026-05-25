@@ -71,6 +71,8 @@
   --radius-xl: 24px;
 }
 
+
+
 .sidebar-layout {
   padding-left: var(--sidebar-width, 260px);
 }
@@ -415,4 +417,19 @@ textarea.input-field {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius);
+}
+
+/* Custom scrollbar for chat area */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.15);
 }

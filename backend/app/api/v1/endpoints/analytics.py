@@ -2,7 +2,8 @@
 Admin Analytics endpoints.
 """
 
-from fastapi import APIRouter, Depends
+from datetime import datetime, timezone, timedelta
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -19,23 +20,28 @@ router = APIRouter()
 
 @router.get("/overview", response_model=AnalyticsOverview)
 async def get_analytics_overview(
+    period: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Get analytics overview (Admin only)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=period)
+
     # Total tickets
-    total = await db.execute(select(func.count(Ticket.id)))
+    total = await db.execute(
+        select(func.count(Ticket.id)).where(Ticket.created_at >= cutoff)
+    )
     total_tickets = total.scalar() or 0
 
     # Open tickets
     open_q = await db.execute(
-        select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.OPEN)
+        select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.OPEN, Ticket.created_at >= cutoff)
     )
     open_tickets = open_q.scalar() or 0
 
     # Resolved tickets
     resolved_q = await db.execute(
-        select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.RESOLVED)
+        select(func.count(Ticket.id)).where(Ticket.status == TicketStatus.RESOLVED, Ticket.created_at >= cutoff)
     )
     resolved_tickets = resolved_q.scalar() or 0
 
@@ -45,7 +51,7 @@ async def get_analytics_overview(
             func.avg(
                 func.extract("epoch", Ticket.resolved_at - Ticket.created_at) / 3600
             )
-        ).where(Ticket.resolved_at.isnot(None))
+        ).where(Ticket.resolved_at.isnot(None), Ticket.created_at >= cutoff)
     )
     avg_resolution_hours = round(avg_res.scalar() or 0, 1)
 

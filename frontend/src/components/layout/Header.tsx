@@ -17,6 +17,7 @@ const ROUTE_META: Record<string, { title: string }> = {
   "/dashboard/settings": { title: "Settings" },
   "/dashboard/notifications": { title: "Notifications" },
   "/dashboard/admin": { title: "Analytics" },
+  "/dashboard/admin/tickets": { title: "Ticket Queue" },
   "/dashboard/admin/users": { title: "Manage Users" },
   "/dashboard/admin/kb": { title: "Manage KB" },
 }

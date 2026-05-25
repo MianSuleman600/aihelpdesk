@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { authAPI } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -12,21 +13,18 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to send reset email');
-      if (data.reset_token) {
-        window.location.href = `/auth/reset-password?token=${data.reset_token}`;
-      } else {
-        setSuccess(true);
-      }
+      await authAPI.forgotPassword(email);
+      setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

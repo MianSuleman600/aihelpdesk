@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import { kbAPI } from "@/lib/api"
 import { timeAgo, truncate } from "@/lib/utils"
-import type { KBArticle } from "@/types"
+import type { KBArticle, Category } from "@/types"
 import {
   Plus, Edit, Trash2, Eye, EyeOff, Loader2, BookOpen, Search, X
 } from "lucide-react"
@@ -24,38 +24,40 @@ export default function AdminKBPage() {
   const [search, setSearch] = useState("")
   const [showEditor, setShowEditor] = useState(false)
   const [editingArticle, setEditingArticle] = useState<KBArticle|null>(null)
-  const [form, setForm] = useState({title:"",body:"",tags:"",is_published:false})
+  const [form, setForm] = useState({title:"",body:"",tags:"",is_published:false,category_id:""})
+  const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (user?.role!=="admin"&&user?.role!=="agent") { router.replace("/dashboard"); return; }
+    kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
     loadArticles()
   }, [user, router])
 
   const loadArticles = async () => {
     setLoading(true)
-    try { setArticles(await kbAPI.getArticles({limit:100})) } catch {} finally { setLoading(false) }
+    try { setArticles(await kbAPI.getArticles({limit:100})) } catch (e) { console.error(e); } finally { setLoading(false) }
   }
 
   const handleSave = async () => {
     if (!form.title||!form.body) return
     setSaving(true)
     try {
-      const payload = {title:form.title, body:form.body, tags:form.tags.split(",").map(t=>t.trim()).filter(Boolean), is_published:form.is_published}
+      const payload = {title:form.title, body:form.body, tags:form.tags.split(",").map(t=>t.trim()).filter(Boolean), is_published:form.is_published, category_id:form.category_id||undefined}
       if (editingArticle) { await kbAPI.updateArticle(editingArticle.id, payload) }
       else { await kbAPI.createArticle(payload) }
-      setShowEditor(false); setEditingArticle(null); setForm({title:"",body:"",tags:"",is_published:false})
+      setShowEditor(false); setEditingArticle(null); setForm({title:"",body:"",tags:"",is_published:false,category_id:""})
       await loadArticles()
-    } catch {} finally { setSaving(false) }
+    } catch (e) { console.error(e); } finally { setSaving(false) }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this article?")) return
-    try { await kbAPI.deleteArticle(id); setArticles(p=>p.filter(a=>a.id!==id)) } catch {}
+    try { await kbAPI.deleteArticle(id); setArticles(p=>p.filter(a=>a.id!==id)) } catch (e) { console.error(e); }
   }
 
   const handleEdit = (a: KBArticle) => {
-    setEditingArticle(a); setForm({title:a.title,body:a.body,tags:a.tags.join(", "),is_published:a.is_published}); setShowEditor(true)
+    setEditingArticle(a); setForm({title:a.title,body:a.body,tags:a.tags.join(", "),is_published:a.is_published,category_id:a.category_id||""}); setShowEditor(true)
   }
 
   const filtered = search ? articles.filter(a=>a.title.toLowerCase().includes(search.toLowerCase())) : articles
@@ -67,7 +69,7 @@ export default function AdminKBPage() {
           <h1 className="text-xl md:text-2xl font-bold text-white">Manage Knowledge Base</h1>
           <p className="text-sm text-[var(--on-surface-variant)] mt-1">{articles.length} articles</p>
         </div>
-        <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false});setShowEditor(true)}}>
+        <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false,category_id:""});setShowEditor(true)}}>
           <Plus size={16}/>New Article
         </Button>
       </div>
@@ -94,6 +96,20 @@ export default function AdminKBPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="tags">Tags</Label>
                 <Input id="tags" value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})} placeholder="Tags (comma separated)" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="category">Category</Label>
+                <select
+                  id="category"
+                  value={form.category_id}
+                  onChange={e=>setForm({...form,category_id:e.target.value})}
+                  className="flex w-full rounded-lg border border-[var(--outline-variant)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-sm text-[var(--on-surface)] outline-none transition-all focus:border-[var(--primary)]/50 focus:bg-[rgba(var(--primary-rgb),0.06)] focus:shadow-[0_0_0_3px_rgba(var(--primary-rgb),0.15)] cursor-pointer"
+                >
+                  <option value="" className="bg-[#1a1a2e]">No category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id} className="bg-[#1a1a2e]">{c.name}</option>
+                  ))}
+                </select>
               </div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -144,6 +160,7 @@ export default function AdminKBPage() {
               <thead>
                 <tr className="border-b border-white/5 text-[var(--on-surface-variant)] text-xs uppercase tracking-wider">
                   <th className="text-left py-3 px-4 md:px-5 font-semibold">Title</th>
+                  <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Category</th>
                   <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Status</th>
                   <th className="text-left py-3 px-4 md:px-5 font-semibold hidden md:table-cell">Views</th>
                   <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Updated</th>
@@ -154,6 +171,9 @@ export default function AdminKBPage() {
                 {filtered.map(a=>(
                   <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4 md:px-5 font-medium text-white">{truncate(a.title,40)}</td>
+                    <td className="py-3 px-4 md:px-5 text-xs text-[var(--on-surface-variant)] hidden sm:table-cell">
+                      {a.category_id ? categories.find(c=>c.id===a.category_id)?.name || <span className="italic text-[var(--on-surface-variant)]/50">Unknown</span> : <span className="italic text-[var(--on-surface-variant)]/50">None</span>}
+                    </td>
                     <td className="py-3 px-4 md:px-5 hidden sm:table-cell">
                       {a.is_published
                         ? <Badge variant="success"><Eye size={10}/>Published</Badge>
@@ -181,7 +201,7 @@ export default function AdminKBPage() {
           </div>
           <h3 className="text-lg font-semibold text-white mb-2">No articles yet</h3>
           <p className="text-sm text-[var(--on-surface-variant)] mb-5">Create your first knowledge base article to get started.</p>
-          <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false});setShowEditor(true)}}>
+          <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false,category_id:""});setShowEditor(true)}}>
             <Plus size={16}/>Create first article
           </Button>
         </Card>

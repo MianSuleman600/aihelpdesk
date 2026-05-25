@@ -1,11 +1,28 @@
 """
 Pydantic schemas for request/response validation.
+Includes input sanitization and length constraints.
 """
 
-from pydantic import BaseModel, EmailStr, Field
+import re
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.models.models import UserRole, TicketStatus, Priority, FeedbackRating
+
+
+# ============================================================
+# Helpers
+# ============================================================
+
+def strip_html(text: str) -> str:
+    """Remove basic HTML tags from input."""
+    return re.sub(r'<[^>]+>', '', text)
+
+
+def sanitize_text(text: str, max_len: int = 1000) -> str:
+    """Sanitize text: strip HTML, trim whitespace, limit length."""
+    cleaned = strip_html(text.strip())
+    return cleaned[:max_len]
 
 
 # ============================================================
@@ -16,7 +33,14 @@ class UserRegister(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Full name")
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., min_length=8, max_length=128, description="Password (minimum 8 characters)")
-    role: Optional[UserRole] = UserRole.USER
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = strip_html(v.strip())
+        if len(v) < 2:
+            raise ValueError("Name must be at least 2 characters")
+        return v[:100]
 
 
 class UserLogin(BaseModel):
@@ -54,7 +78,6 @@ class UserResponse(BaseModel):
     name: str = Field(..., description="User name")
     email: str = Field(..., description="User email")
     role: UserRole = Field(..., description="User role")
-    avatar_url: Optional[str] = Field(None, description="Avatar URL")
     is_active: bool = Field(True, description="Account active status")
     created_at: datetime = Field(..., description="Account creation date")
 
@@ -64,7 +87,7 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100, description="Full name")
-    avatar_url: Optional[str] = Field(None, description="Avatar URL")
+    email: Optional[EmailStr] = Field(None, description="Email address")
 
     class Config:
         from_attributes = True
@@ -111,6 +134,11 @@ class KBArticleCreate(BaseModel):
     tags: Optional[List[str]] = []
     is_published: Optional[bool] = False
 
+    @field_validator("title", "body")
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        return strip_html(v.strip())[:10000]
+
 
 class KBArticleUpdate(BaseModel):
     title: Optional[str] = None
@@ -118,6 +146,13 @@ class KBArticleUpdate(BaseModel):
     category_id: Optional[str] = None
     tags: Optional[List[str]] = None
     is_published: Optional[bool] = None
+
+    @field_validator("title", "body")
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        if v is None:
+            return v
+        return strip_html(v.strip())[:10000]
 
 
 class KBArticleResponse(BaseModel):
@@ -146,6 +181,11 @@ class TicketCreate(BaseModel):
     description: str = Field(..., min_length=10)
     priority: Optional[Priority] = Priority.MEDIUM
     category_id: Optional[str] = None
+
+    @field_validator("subject", "description")
+    @classmethod
+    def sanitize_ticket(cls, v: str) -> str:
+        return strip_html(v.strip())[:5000]
 
 
 class TicketUpdate(BaseModel):
@@ -187,6 +227,11 @@ class TicketResponse(BaseModel):
 class TicketMessageCreate(BaseModel):
     message: str = Field(..., min_length=1)
     is_internal: Optional[bool] = False
+
+    @field_validator("message")
+    @classmethod
+    def sanitize_message(cls, v: str) -> str:
+        return strip_html(v.strip())[:10000]
 
 
 class TicketMessageResponse(BaseModel):
@@ -254,6 +299,11 @@ class AIChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     session_id: Optional[str] = None
 
+    @field_validator("query")
+    @classmethod
+    def sanitize_query(cls, v: str) -> str:
+        return strip_html(v.strip())[:2000]
+
 
 class AIChatSource(BaseModel):
     article_id: str
@@ -316,6 +366,27 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============================================================
+# Settings Schemas
+# ============================================================
+
+class UserSettingsResponse(BaseModel):
+    notification_email: bool = True
+    notification_browser: bool = True
+    notification_ticket_updates: bool = False
+    theme: str = "system"
+
+    class Config:
+        from_attributes = True
+
+
+class UserSettingsUpdate(BaseModel):
+    notification_email: Optional[bool] = None
+    notification_browser: Optional[bool] = None
+    notification_ticket_updates: Optional[bool] = None
+    theme: Optional[str] = Field(None, pattern="^(light|dark|system)$")
 
 
 # ============================================================

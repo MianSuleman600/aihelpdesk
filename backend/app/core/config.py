@@ -2,6 +2,7 @@
 Application configuration loaded from environment variables.
 """
 
+import secrets
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -20,8 +21,22 @@ class Settings(BaseSettings):
     DATABASE_URL_SYNC: str = "postgresql://postgres:password@localhost:5432/aihelpdesk"
 
     # JWT Authentication
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
+
+    @property
+    def jwt_secret(self) -> str:
+        if not self.SECRET_KEY or self.SECRET_KEY == "your-super-secret-key-change-in-production":
+            import warnings
+            generated = secrets.token_urlsafe(32)
+            warnings.warn(
+                f"SECRET_KEY not set or using default. Generated random key: {generated}. "
+                "Set SECRET_KEY in .env for production.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+            return generated
+        return self.SECRET_KEY
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # OpenAI
@@ -39,6 +54,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "deepseek/deepseek-chat"
+    OPENROUTER_EMBEDDING_MODEL: str = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
     # Fallback: if OpenRouter key is empty, use OpenAI directly
     LLM_PROVIDER: str = "openrouter"  # "openrouter" or "openai"
 

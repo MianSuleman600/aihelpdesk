@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
-import { apiClient } from "@/lib/apiClient"
+import { adminAPI } from "@/lib/api"
 import { Shield, UserCheck, UserX, Search, RefreshCw, Mail } from "lucide-react"
 import type { User } from "@/types"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar } from "@/components/ui/avatar"
 
 export default function AdminUsersPage() {
   const { user } = useAuth()
@@ -28,7 +27,7 @@ export default function AdminUsersPage() {
     setLoading(true)
     setError("")
     try {
-      const data = await apiClient.get<User[]>("/admin/users", search ? { search } : undefined)
+      const data = await adminAPI.listUsers(search)
       setUsers(data)
     } catch {
       setError("Failed to load users")
@@ -39,16 +38,16 @@ export default function AdminUsersPage() {
 
   const toggleStatus = async (userId: string) => {
     try {
-      await apiClient.patch(`/admin/users/${userId}/toggle-status`, {})
+      await adminAPI.toggleUserStatus(userId)
       fetchUsers()
-    } catch { /* ignore */ }
+    } catch (e) { console.error(e); }
   }
 
   const changeRole = async (userId: string, role: string) => {
     try {
-      await apiClient.patch(`/admin/users/${userId}/role?role=${role}`, {})
+      await adminAPI.updateUserRole(userId, role)
       fetchUsers()
-    } catch { /* ignore */ }
+    } catch (e) { console.error(e); }
   }
 
   const ROLE_COLORS: Record<string, string> = {
@@ -127,7 +126,7 @@ export default function AdminUsersPage() {
                     <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="py-3 px-4 md:px-5">
                         <div className="flex items-center gap-3">
-                          <Avatar name={u.name} size="md" />
+                          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] flex items-center justify-center text-white text-xs font-bold shrink-0">{u.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</span>
                           <div className="min-w-0">
                             <p className="font-medium text-white truncate">{u.name}</p>
                             <p className="text-xs text-[var(--on-surface-variant)] flex items-center gap-1 truncate">

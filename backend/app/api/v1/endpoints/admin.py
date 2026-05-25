@@ -2,7 +2,7 @@
 Admin endpoints: user management, system administration.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.models import User, UserRole, Ticket, KBArticle
 from app.schemas.schemas import UserResponse
 from app.api.deps import require_admin, require_agent_or_admin
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -55,6 +56,7 @@ async def get_user(
 
 @router.patch("/users/{user_id}/role")
 async def update_user_role(
+    request: Request,
     user_id: str,
     role: UserRole,
     db: AsyncSession = Depends(get_db),
@@ -69,13 +71,27 @@ async def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    old_role = user.role
     user.role = role
     await db.flush()
+
+    await AuditService.log(
+        db=db,
+        action="admin.update_role",
+        user_id=current_user.id,
+        resource_type="user",
+        resource_id=user_id,
+        details={"target_user": user.email, "old_role": old_role.value, "new_role": role.value},
+        ip_address=request.client.host if request.client else "unknown",
+        user_agent=request.headers.get("user-agent", ""),
+    )
+
     return {"status": "ok", "user_id": user_id, "role": role.value}
 
 
 @router.patch("/users/{user_id}/toggle-status")
 async def toggle_user_status(
+    request: Request,
     user_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -91,6 +107,18 @@ async def toggle_user_status(
 
     user.is_active = not user.is_active
     await db.flush()
+
+    await AuditService.log(
+        db=db,
+        action="admin.toggle_status",
+        user_id=current_user.id,
+        resource_type="user",
+        resource_id=user_id,
+        details={"target_user": user.email, "is_active": user.is_active},
+        ip_address=request.client.host if request.client else "unknown",
+        user_agent=request.headers.get("user-agent", ""),
+    )
+
     return {
         "status": "ok",
         "user_id": user_id,
@@ -100,6 +128,7 @@ async def toggle_user_status(
 
 @router.delete("/users/{user_id}")
 async def delete_user(
+    request: Request,
     user_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -112,6 +141,17 @@ async def delete_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    await AuditService.log(
+        db=db,
+        action="admin.delete_user",
+        user_id=current_user.id,
+        resource_type="user",
+        resource_id=user_id,
+        details={"target_user": user.email},
+        ip_address=request.client.host if request.client else "unknown",
+        user_agent=request.headers.get("user-agent", ""),
+    )
 
     await db.delete(user)
     return {"status": "ok", "message": "User deleted successfully"}

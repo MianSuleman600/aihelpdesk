@@ -68,7 +68,6 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
-    avatar_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
@@ -80,6 +79,20 @@ class User(Base):
     messages = relationship("TicketMessage", back_populates="sender", lazy="selectin")
     feedbacks = relationship("AIFeedback", back_populates="user", lazy="selectin")
     notifications = relationship("Notification", back_populates="user", lazy="selectin")
+    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    notification_email = Column(Boolean, default=True, nullable=False)
+    notification_browser = Column(Boolean, default=True, nullable=False)
+    notification_ticket_updates = Column(Boolean, default=False, nullable=False)
+    theme = Column(String(20), default="system", nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    user = relationship("User", back_populates="settings")
 
 
 class Category(Base):
@@ -168,7 +181,7 @@ class TicketMessage(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     ticket_id = Column(String, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False)
-    sender_id = Column(String, ForeignKey("users.id"), nullable=False)
+    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     message = Column(Text, nullable=False)
     is_internal = Column(Boolean, default=False)  # Internal notes visible only to agents
     is_ai_draft = Column(Boolean, default=False)  # AI-generated draft
@@ -280,3 +293,21 @@ class ChatMessage(Base):
 
     # Relationships
     session = relationship("ChatSession", back_populates="messages")
+
+
+class AuditLog(Base):
+    """
+    Audit trail for sensitive operations.
+    Tracks who did what, when, and from where.
+    """
+    __tablename__ = "audit_logs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    action = Column(String(100), nullable=False)
+    resource_type = Column(String(50), nullable=True)
+    resource_id = Column(String, nullable=True)
+    details = Column(JSON, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)

@@ -3,9 +3,12 @@ AI-Powered Helpdesk & Knowledge Base Portal - Backend
 FastAPI Application Entry Point
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 import uvicorn
 
 from app.core.config import settings
@@ -13,6 +16,7 @@ from app.core.logging import setup_logging, get_logger
 from app.api.v1.router import api_router
 from app.db.session import engine
 from app.db.base import Base
+from app.ws.handler import websocket_endpoint
 
 logger = get_logger(__name__)
 
@@ -65,14 +69,22 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Serve uploaded files
+upload_dir = settings.UPLOAD_DIR or "uploads"
+os.makedirs(upload_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
+
+# WebSocket endpoint for real-time messaging and notifications
+app.websocket("/ws")(websocket_endpoint)
 
 
 @app.get("/", tags=["Root"])
@@ -89,9 +101,17 @@ async def root():
 @app.get("/health", tags=["Root"])
 async def health_check():
     """Detailed health check."""
+    db_ok = False
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            db_ok = True
+    except Exception:
+        db_ok = False
+
     return {
-        "status": "healthy",
-        "database": "connected",
+        "status": "healthy" if db_ok else "degraded",
+        "database": "connected" if db_ok else "disconnected",
         "environment": settings.ENVIRONMENT,
     }
 

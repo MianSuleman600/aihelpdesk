@@ -4,14 +4,35 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { notificationsAPI } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
+import { useWebSocket } from "@/context/WebSocketContext";
 import type { Notification } from "@/types";
 import { Bell, Loader2 } from "lucide-react";
+import { playNotificationSound } from "@/lib/websocket";
 
 export function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { on } = useWebSocket();
+
+  // Listen for real-time notifications via WebSocket
+  useEffect(() => {
+    const unsub = on("new_notification", (data) => {
+      const notif = data.notification as Notification;
+      if (notif && notif.id) {
+        console.debug("[Notif] New via WS:", notif.title);
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notif.id)) return prev;
+          return [notif, ...prev];
+        });
+        playNotificationSound();
+      } else {
+        console.warn("[Notif] Invalid WS data:", data);
+      }
+    });
+    return unsub;
+  }, [on]);
 
   useEffect(() => {
     if (open) {
@@ -19,7 +40,7 @@ export function NotificationDropdown() {
       notificationsAPI
         .getAll()
         .then(setNotifications)
-        .catch(() => {})
+        .catch((e) => console.error(e))
         .finally(() => setLoading(false));
     }
   }, [open]);

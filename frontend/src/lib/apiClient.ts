@@ -1,4 +1,5 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const BASE_URL = API_BASE_URL;
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -32,34 +33,47 @@ function removeAccessToken(): void {
   localStorage.removeItem('helpdesk_token');
 }
 
+let refreshPromise: Promise<void> | null = null;
+
 async function refreshToken(): Promise<void> {
-  const currentToken = getAccessToken();
-  if (!currentToken) {
-    window.location.href = '/login';
+  if (refreshPromise) {
+    await refreshPromise;
     return;
   }
 
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${currentToken}`,
-      },
-    });
-
-    if (!res.ok) {
-      removeAccessToken();
-      window.location.href = '/login';
+  refreshPromise = (async () => {
+    const currentToken = getAccessToken();
+    if (!currentToken) {
+      window.location.href = '/auth/login';
       return;
     }
 
-    const data = await res.json();
-    setAccessToken(data.access_token);
-  } catch {
-    removeAccessToken();
-    window.location.href = '/login';
-  }
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        removeAccessToken();
+        window.location.href = '/auth/login';
+        return;
+      }
+
+      const data = await res.json();
+      setAccessToken(data.access_token);
+    } catch {
+      removeAccessToken();
+      window.location.href = '/auth/login';
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  await refreshPromise;
 }
 
 export { ApiError };

@@ -37,11 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  const handleApiError = async (res: Response): Promise<never> => {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data?.detail || data?.message || `Request failed (${res.status})`);
-  };
-
   const login = async (email: string, password: string) => {
     setError("");
     await authAPI.login(email, password);
@@ -51,12 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     setError("");
-    const res = await fetch("http://localhost:8000/api/v1/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role: "user" }),
-    });
-    if (!res.ok) await handleApiError(res);
+    await authAPI.register(name, email, password);
   };
 
   const logout = async () => {

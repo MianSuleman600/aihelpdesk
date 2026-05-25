@@ -16,17 +16,17 @@ export default function NotificationsPage() {
     const load = async () => {
       setLoading(true);
       try { const n = await notificationsAPI.getAll(filter==="unread"); setNotifications(n); }
-      catch {} finally { setLoading(false); }
+      catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
   }, [filter]);
 
   const markRead = async (id: string) => {
-    try { await notificationsAPI.markRead(id); setNotifications(p=>p.map(n=>n.id===id?{...n,is_read:true}:n)); } catch {}
+    try { await notificationsAPI.markRead(id); setNotifications(p=>p.map(n=>n.id===id?{...n,is_read:true}:n)); } catch (e) { console.error(e); }
   };
 
   const markAllRead = async () => {
-    try { await notificationsAPI.markAllRead(); setNotifications(p=>p.map(n=>({...n,is_read:true}))); } catch {}
+    try { await notificationsAPI.markAllRead(); setNotifications(p=>p.map(n=>({...n,is_read:true}))); } catch (e) { console.error(e); }
   };
 
   const unreadCount = notifications.filter(n=>!n.is_read).length;

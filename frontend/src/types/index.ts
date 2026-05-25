@@ -14,7 +14,6 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  avatar_url?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -199,6 +198,19 @@ export interface DocumentListResponse {
   total: number;
   limit: number;
   max_documents: number;
+}
+
+// --- Settings ---
+export interface UserSettings {
+  notification_email: boolean;
+  notification_browser: boolean;
+  notification_ticket_updates: boolean;
+}
+
+export interface UserSettingsUpdate {
+  notification_email?: boolean;
+  notification_browser?: boolean;
+  notification_ticket_updates?: boolean;
 }
 
 // --- AI Feedback ---

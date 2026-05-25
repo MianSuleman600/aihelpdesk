@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ticketsAPI, aiAPI } from "@/lib/api";
+import { ticketsAPI, aiAPI, adminAPI } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useWebSocket } from "@/context/WebSocketContext";
 import { timeAgo, formatDateTime, getInitials } from "@/lib/utils";
 import { TICKET_STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/constants";
 import type { Ticket, TicketMessage, UserBrief } from "@/types";
@@ -11,7 +12,7 @@ import {
   AlertCircle, UserCheck, UserPlus, X, Check, Lock,
   FileEdit, Ban, RotateCcw, ChevronDown
 } from "lucide-react";
-import { apiClient } from "@/lib/apiClient";
+import { playNotificationSound } from "@/lib/websocket";
 
 type StatusAction = "close" | "reopen";
 
@@ -52,6 +53,8 @@ export default function TicketDetailPage() {
   const [agents, setAgents] = useState<UserBrief[]>([]);
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { subscribe, unsubscribe, on } = useWebSocket();
   const isAgent = user?.role === "agent" || user?.role === "admin";
   const isOwner = ticket?.created_by_id === user?.id;
   const isClosed = ticket?.status === "closed";
@@ -61,17 +64,52 @@ export default function TicketDetailPage() {
     try {
       const [t, m] = await Promise.all([ticketsAPI.getById(id), ticketsAPI.getMessages(id)]);
       setTicket(t); setMessages(m);
-    } catch { setError("Ticket not found."); }
+    } catch (e) { console.error(e); setError("Ticket not found."); }
     finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { loadTicket(); }, [loadTicket]);
 
+  // Subscribe to real-time messages via WebSocket
+  useEffect(() => {
+    if (!id) return;
+    subscribe(id);
+
+    const unsubNewMessage = on("new_message", (data) => {
+      const msg = data.message as TicketMessage;
+      if (msg.ticket_id === id && msg.sender_id !== user?.id) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        playNotificationSound();
+      }
+    });
+
+    const unsubTicketUpdate = on("ticket_updated", (data) => {
+      const upd = data.ticket as Partial<Ticket>;
+      if (upd.id === id) {
+        setTicket((prev) => (prev ? { ...prev, ...upd } : prev));
+      }
+    });
+
+    return () => {
+      unsubscribe(id);
+      unsubNewMessage();
+      unsubTicketUpdate();
+    };
+  }, [id, subscribe, unsubscribe, on, user?.id]);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   useEffect(() => {
     if (isAgent && showAssignDropdown && agents.length === 0) {
-      apiClient.get<UserBrief[]>("/admin/users?role=agent")
+      adminAPI.getAgents()
         .then(setAgents)
-        .catch(() => {});
+        .catch((e) => console.error(e));
     }
   }, [isAgent, showAssignDropdown, agents.length]);
 
@@ -81,7 +119,7 @@ export default function TicketDetailPage() {
     setSending(true);
     try {
       const msg = await ticketsAPI.addMessage(id, { message: newMsg, is_internal: isInternal });
-      setMessages(p=>[...p,msg]); setNewMsg("");
+      setMessages(p=>[...p,msg]); setNewMsg(""); setIsInternal(false);
     } catch (err: unknown) {
       const detail = (err as {status?: number; message?: string})?.message || "Failed to send message.";
       setError(detail);
@@ -225,7 +263,7 @@ export default function TicketDetailPage() {
                 <MessageSquare size={18}/> Conversation ({messages.length})
               </h2>
             </div>
-            <div className="divide-y divide-white/3">
+            <div className="divide-y divide-white/3 max-h-[420px] overflow-y-auto scrollbar-thin">
               {messages.length === 0 ? (
                 <div className="p-8 text-center text-[var(--on-surface-variant)]">No messages yet.</div>
               ) : messages.map(m => {
@@ -255,6 +293,7 @@ export default function TicketDetailPage() {
                   </div>
                 );
               })}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Reply form */}

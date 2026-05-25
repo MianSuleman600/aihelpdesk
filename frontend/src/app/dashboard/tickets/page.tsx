@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ticketsAPI } from "@/lib/api";
+import { ticketsAPI, kbAPI } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { timeAgo, truncate, getInitials } from "@/lib/utils";
 import { TICKET_STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/constants";
-import type { Ticket, TicketStatus } from "@/types";
+import type { Ticket, TicketStatus, Category } from "@/types";
 import { Plus, Ticket as TIcon, Search, X, UserCheck } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,10 +21,16 @@ export default function TicketsListPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [showNewTicket, setShowNewTicket] = useState(false);
 
   const isAgent = user?.role === "agent" || user?.role === "admin";
+
+  useEffect(() => {
+    kbAPI.getCategories().then(setCategories).catch((e) => console.error(e));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -33,16 +39,17 @@ export default function TicketsListPage() {
         const t = await ticketsAPI.getAll({
           status: (statusFilter as TicketStatus) || undefined,
           assigned_to_me: assignedToMe || undefined,
+          category_id: categoryFilter || undefined,
         });
         setTickets(t);
-      } catch {
-        // silent
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [statusFilter, assignedToMe]);
+  }, [statusFilter, assignedToMe, categoryFilter]);
 
   const filtered = search
     ? tickets.filter(
@@ -120,6 +127,16 @@ export default function TicketsListPage() {
               Mine
             </Button>
           )}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="py-1.5 px-2.5 rounded-lg bg-white/5 border border-[var(--outline-variant)]/50 text-sm text-[var(--on-surface)] outline-none focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15 transition-all cursor-pointer"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id} className="bg-[#1a1a2e]">{c.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -148,6 +165,7 @@ export default function TicketsListPage() {
                   <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Subject</th>
                   <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Status</th>
                   <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Priority</th>
+                  <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] hidden sm:table-cell">Category</th>
                   {isAgent && <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Assigned To</th>}
                   <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Updated</th>
                 </tr>
@@ -187,6 +205,9 @@ export default function TicketsListPage() {
                         <Badge variant={prioVariant as "default"}>
                           {PRIORITY_CONFIG[t.priority]?.label}
                         </Badge>
+                      </td>
+                      <td className="py-3.5 px-5 text-xs text-[var(--on-surface-variant)] hidden sm:table-cell">
+                        {t.category_id ? categories.find(c => c.id === t.category_id)?.name || <span className="italic text-[var(--on-surface-variant)]/50">Unknown</span> : <span className="italic text-[var(--on-surface-variant)]/50">None</span>}
                       </td>
                       {isAgent && (
                         <td className="py-3.5 px-5">

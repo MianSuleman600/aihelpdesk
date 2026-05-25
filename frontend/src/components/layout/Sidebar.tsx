@@ -18,19 +18,29 @@ import {
   Upload,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/ai-chat", label: "AI Assistant", icon: Sparkles },
-  { href: "/dashboard/tickets", label: "My Tickets", icon: Ticket },
-  { href: "/dashboard/kb", label: "Knowledge Base", icon: BookOpen },
-];
+function getMainNav(userRole?: string) {
+  return [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/ai-chat", label: "AI Assistant", icon: Sparkles },
+    { href: "/dashboard/tickets", label: userRole === "agent" || userRole === "admin" ? "Tickets" : "My Tickets", icon: Ticket },
+    { href: "/dashboard/kb", label: "Knowledge Base", icon: BookOpen },
+  ];
+}
 
-const ADMIN_NAV_ITEMS = [
-  { href: "/dashboard/admin", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
-  { href: "/dashboard/admin/kb", label: "Manage KB", icon: FileEdit },
-  { href: "/dashboard/admin/documents", label: "Documents", icon: Upload },
-];
+function getAdminNav(userRole?: string) {
+  const items = [
+    { href: "/dashboard/admin/tickets", label: "Ticket Queue", icon: Ticket },
+  ];
+  if (userRole === "admin") {
+    items.unshift({ href: "/dashboard/admin", label: "Analytics", icon: BarChart3 });
+    items.push({ href: "/dashboard/admin/users", label: "Manage Users", icon: Users });
+  }
+  items.push(
+    { href: "/dashboard/admin/kb", label: "Manage KB", icon: FileEdit },
+    { href: "/dashboard/admin/documents", label: "Documents", icon: Upload },
+  );
+  return items;
+}
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -58,7 +68,7 @@ export default function Sidebar() {
         </p>
 
         <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => {
+          {getMainNav(user?.role).map((item) => {
             const active =
               pathname === item.href ||
               (pathname.startsWith(item.href + "/") && item.href !== "/dashboard");
@@ -98,13 +108,13 @@ export default function Sidebar() {
           })}
         </div>
 
-        {user?.role === "admin" && (
+        {(user?.role === "admin" || user?.role === "agent") && (
           <>
             <p className="text-[10px] font-semibold uppercase tracking-widest px-3 mb-2.5 mt-6 text-white/25">
               Administration
             </p>
             <div className="space-y-0.5">
-              {ADMIN_NAV_ITEMS.map((item) => {
+              {getAdminNav(user?.role).map((item) => {
                 const active = pathname.startsWith(item.href);
                 return (
                   <Link

@@ -10,12 +10,14 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.models.models import Ticket, TicketMessage, Notification, User, UserRole, TicketStatus
+from app.models.models import Ticket, TicketMessage, User, UserRole, TicketStatus
+from app.services.notification_service import NotificationService
 from app.schemas.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketAssign,
     TicketMessageCreate, TicketMessageResponse,
 )
 from app.api.deps import get_current_user, require_agent_or_admin
+from app.ws.manager import ws_manager
 
 router = APIRouter()
 
@@ -63,6 +65,7 @@ async def _attach_sender_names(messages: List[TicketMessage], db: AsyncSession) 
 async def list_tickets(
     status_filter: Optional[TicketStatus] = Query(None, alias="status"),
     assigned_to_me: Optional[bool] = Query(None),
+    category_id: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -72,6 +75,7 @@ async def list_tickets(
     query = select(Ticket).options(
         selectinload(Ticket.created_by_user),
         selectinload(Ticket.assigned_to_user),
+        selectinload(Ticket.category),
     )
 
     if current_user.role == UserRole.USER:
@@ -81,6 +85,9 @@ async def list_tickets(
 
     if status_filter:
         query = query.where(Ticket.status == status_filter)
+
+    if category_id:
+        query = query.where(Ticket.category_id == category_id)
 
     query = query.order_by(Ticket.updated_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
@@ -129,14 +136,14 @@ async def create_ticket(
     )
     for admin in admins.scalars().all():
         if admin.id != current_user.id:
-            notif = Notification(
+            await NotificationService.create_notification(
                 user_id=admin.id,
                 title="New ticket created",
                 message=f"{current_user.name} created ticket: {ticket.subject[:100]}",
                 link=f"/dashboard/tickets/{ticket.id}",
+                db=db,
+                notification_type="ticket",
             )
-            db.add(notif)
-    await db.flush()
 
     return ticket
 
@@ -174,24 +181,40 @@ async def update_ticket(
     await db.flush()
 
     if data.status:
-        notif = Notification(
+        await NotificationService.create_notification(
             user_id=ticket.created_by_id,
             title=f"Ticket #{ticket.id[:8]} updated",
             message=f"Status changed to '{ticket.status.value}'",
             link=f"/dashboard/tickets/{ticket.id}",
+            db=db,
+            notification_type="ticket",
         )
-        db.add(notif)
 
     if data.assigned_to_id and data.assigned_to_id != ticket.created_by_id:
-        notif = Notification(
+        await NotificationService.create_notification(
             user_id=data.assigned_to_id,
             title="New ticket assignment",
             message=f"Ticket '{ticket.subject}' has been assigned to you",
             link=f"/dashboard/tickets/{ticket.id}",
+            db=db,
+            notification_type="ticket",
         )
-        db.add(notif)
 
     await db.flush()
+
+    await ws_manager.broadcast_to_ticket(
+        ticket_id=ticket_id,
+        event={
+            "type": "ticket_updated",
+            "ticket": {
+                "id": ticket.id,
+                "status": ticket.status.value,
+                "subject": ticket.subject,
+                "assigned_to_id": ticket.assigned_to_id,
+            },
+        },
+    )
+
     return ticket
 
 
@@ -219,14 +242,27 @@ async def close_ticket(
     ticket.status = TicketStatus.CLOSED
     await db.flush()
 
-    notif = Notification(
+    await NotificationService.create_notification(
         user_id=ticket.created_by_id,
         title=f"Ticket #{ticket.id[:8]} closed",
         message="Ticket has been closed",
         link=f"/dashboard/tickets/{ticket.id}",
+        db=db,
+        notification_type="ticket",
     )
-    db.add(notif)
-    await db.flush()
+
+    await ws_manager.broadcast_to_ticket(
+        ticket_id=ticket_id,
+        event={
+            "type": "ticket_updated",
+            "ticket": {
+                "id": ticket.id,
+                "status": ticket.status.value,
+                "subject": ticket.subject,
+                "assigned_to_id": ticket.assigned_to_id,
+            },
+        },
+    )
 
     return ticket
 
@@ -262,14 +298,27 @@ async def reopen_ticket(
     )
     for admin in admins.scalars().all():
         if admin.id != current_user.id:
-            notif = Notification(
+            await NotificationService.create_notification(
                 user_id=admin.id,
                 title=f"Ticket #{ticket.id[:8]} reopened",
                 message=f"{current_user.name} reopened ticket: {ticket.subject[:100]}",
                 link=f"/dashboard/tickets/{ticket.id}",
+                db=db,
+                notification_type="ticket",
             )
-            db.add(notif)
-    await db.flush()
+
+    await ws_manager.broadcast_to_ticket(
+        ticket_id=ticket_id,
+        event={
+            "type": "ticket_updated",
+            "ticket": {
+                "id": ticket.id,
+                "status": ticket.status.value,
+                "subject": ticket.subject,
+                "assigned_to_id": ticket.assigned_to_id,
+            },
+        },
+    )
 
     return ticket
 
@@ -303,22 +352,36 @@ async def assign_ticket(
 
     await db.flush()
 
-    notif = Notification(
+    await NotificationService.create_notification(
         user_id=data.assigned_to_id,
         title="New ticket assignment",
         message=f"Ticket '{ticket.subject[:100]}' has been assigned to you",
         link=f"/dashboard/tickets/{ticket.id}",
+        db=db,
+        notification_type="ticket",
     )
-    db.add(notif)
 
-    creator_notif = Notification(
+    await NotificationService.create_notification(
         user_id=ticket.created_by_id,
         title=f"Ticket #{ticket.id[:8]} assigned",
         message=f"Ticket has been assigned to {assignee.name}",
         link=f"/dashboard/tickets/{ticket.id}",
+        db=db,
+        notification_type="ticket",
     )
-    db.add(creator_notif)
-    await db.flush()
+
+    await ws_manager.broadcast_to_ticket(
+        ticket_id=ticket_id,
+        event={
+            "type": "ticket_updated",
+            "ticket": {
+                "id": ticket.id,
+                "status": ticket.status.value,
+                "subject": ticket.subject,
+                "assigned_to_id": ticket.assigned_to_id,
+            },
+        },
+    )
 
     return ticket
 
@@ -377,13 +440,34 @@ async def add_ticket_message(
     if not data.is_internal:
         other_user_id = ticket.assigned_to_id if current_user.id == ticket.created_by_id else ticket.created_by_id
         if other_user_id and other_user_id != current_user.id:
-            notif = Notification(
+            await NotificationService.create_notification(
                 user_id=other_user_id,
                 title=f"New reply on #{ticket.id[:8]}",
                 message=f"{current_user.name} replied: {data.message[:100]}",
                 link=f"/dashboard/tickets/{ticket.id}",
+                db=db,
+                notification_type="ticket",
             )
-            db.add(notif)
             await db.flush()
+
+    # Broadcast new message via WebSocket to all ticket subscribers except sender
+    await ws_manager.broadcast_to_ticket(
+        ticket_id=ticket_id,
+        event={
+            "type": "new_message",
+            "ticket_id": ticket_id,
+            "message": {
+                "id": message.id,
+                "ticket_id": message.ticket_id,
+                "sender_id": message.sender_id,
+                "sender_name": current_user.name,
+                "message": message.message,
+                "is_internal": message.is_internal,
+                "is_ai_draft": message.is_ai_draft,
+                "created_at": message.created_at.isoformat() if message.created_at else None,
+            },
+        },
+        exclude_user_id=current_user.id,
+    )
 
     return message

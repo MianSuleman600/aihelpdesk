@@ -1,0 +1,23 @@
+How to reset your password on the Starbit Games Helpdesk:
+
+1. Go to the login page and click 'Forgot Password'
+2. Enter your registered email address
+3. Check your inbox for a password reset link
+4. Click the link and enter your new password
+5. Confirm the new password and submit
+6. Login with your new password
+
+If you don't receive the email within 5 minutes, check your spam folder or contact IT support.
+
+For IT Administrators: Password Requirements
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+Troubleshooting Tips:
+- Make sure your caps lock is off
+- Your password is case-sensitive
+- Try clearing your browser cache if the reset link doesn't work
+- If all else fails, contact your system administrator

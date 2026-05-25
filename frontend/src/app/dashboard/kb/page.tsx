@@ -37,8 +37,8 @@ export default function KBBrowsePage() {
         ]);
         if (arts.status === "fulfilled") setArticles(arts.value);
         if (cats.status === "fulfilled") setCategories(cats.value);
-      } catch {
-        // silent
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
@@ -161,6 +161,7 @@ export default function KBBrowsePage() {
 
                     {/* Meta */}
                     <div className="flex items-center gap-4 mt-4 text-xs text-[var(--on-surface-variant)]/60">
+                      {(() => { const cat = categories.find(c => c.id === a.category_id); return cat ? <span className="text-[var(--primary)]/70">{cat.icon} {cat.name}</span> : null })()}
                       <span className="flex items-center gap-1">
                         <Eye size={11} />
                         {a.view_count} views

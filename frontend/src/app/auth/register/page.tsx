@@ -24,9 +24,9 @@ export default function RegisterPage() {
     if (pwd.length >= 8) score++;
     if (/[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) score++;
     if (/[^A-Za-z0-9]/.test(pwd)) score++;
-    const labels = ['Too weak', 'Weak', 'Fair', 'Strong'];
-    const colors = ['var(--rose)', 'var(--amber)', '#84cc16', 'var(--emerald)'];
-    return { score, label: labels[Math.min(score - 1, 3)] || '', color: colors[Math.min(score - 1, 3)] || 'var(--outline)' };
+    const labels = ['', 'Too weak', 'Weak', 'Fair', 'Strong'];
+    const colors = ['var(--outline)', 'var(--rose)', 'var(--amber)', '#84cc16', 'var(--emerald)'];
+    return { score, label: labels[score], color: colors[score] };
   };
 
   const strength = getStrength(password);
@@ -39,8 +39,15 @@ export default function RegisterPage() {
       setError('Please fill in all fields.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -141,7 +148,7 @@ export default function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 characters"
                   className="input-field"
                   style={{ paddingRight: '42px' }}
                   autoComplete="new-password"

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.db.session import get_db
-from app.models.models import User, UploadedDocument, UploadedDocumentStatus
+from app.models.models import User, UserRole, UploadedDocument, UploadedDocumentStatus
 from app.schemas.schemas import (
     DocumentResponse, DocumentListResponse, DocumentUploadResponse, ReindexResponse,
 )
@@ -114,7 +114,7 @@ async def list_documents(
     query = select(UploadedDocument).order_by(UploadedDocument.created_at.desc())
 
     # Non-admin users see only their own uploads
-    if current_user.role.value not in ("admin", "agent"):
+    if current_user.role not in (UserRole.ADMIN, UserRole.AGENT):
         query = query.where(UploadedDocument.uploaded_by_id == current_user.id)
 
     result = await db.execute(query)
@@ -165,10 +165,11 @@ async def delete_document(
     try:
         if os.path.exists(doc.file_path):
             os.remove(doc.file_path)
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"Warning: could not delete file {doc.file_path}: {e}")
 
     await db.delete(doc)
+    await db.flush()
 
 
 @router.post("/{doc_id}/reindex", response_model=ReindexResponse)

@@ -1,10 +1,13 @@
 """
 AI service layer: chat, summarization, draft replies.
-Uses LangChain + OpenAI with RAG from the knowledge base.
+Uses ModelRouter for automatic model fallback across multiple free/paid models.
+Features: query rewriting, hybrid search, structured prompt with CoT and citations.
 """
 
 import asyncio
 import json
+import re
+import logging
 from typing import List, Optional, AsyncGenerator, Tuple
 from datetime import datetime, timezone
 
@@ -15,51 +18,102 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from app.core.config import settings
+from app.core.model_router import get_model_router, ModelEntry
 from app.models.models import (
     User, Ticket, TicketMessage, ChatSession, ChatMessage, KBArticle,
 )
 from app.schemas.schemas import (
     AIChatResponse, AIChatSource, AISummarizeRequest,
 )
-from app.services.embedding_service import EmbeddingService
+from app.services.embedding_service import EmbeddingService, CONFIDENCE_THRESHOLD
 
 from app.services.pinecone_service import PineconeService
 
-# Lazy LLM — created on first use, not at import time
-_llm: Optional[ChatOpenAI] = None
+logger = logging.getLogger(__name__)
 
 
-def get_llm() -> ChatOpenAI:
-    global _llm
-    if _llm is None:
-        use_openrouter = settings.LLM_PROVIDER == "openrouter" and settings.OPENROUTER_API_KEY
+async def _llm_ainvoke_with_fallback(
+    messages: list,
+    temperature: float = 0.3,
+    streaming: bool = False,
+    max_retries: int = 3,
+) -> Tuple[str, str]:
+    """
+    Call LLM with automatic model fallback on rate limits.
+    Returns (content, model_used).
+    """
+    router = get_model_router()
+    last_error = None
 
-        if use_openrouter:
-            _llm = ChatOpenAI(
-                model=settings.OPENROUTER_MODEL,
-                temperature=0.3,
-                timeout=30,
-                max_retries=3,
-                base_url=settings.OPENROUTER_BASE_URL,
-                api_key=settings.OPENROUTER_API_KEY,
-                default_headers={
-                    "HTTP-Referer": "http://localhost:3000",
-                    "X-Title": "HelpDesk AI",
-                },
-            )
-        elif settings.OPENAI_API_KEY:
-            _llm = ChatOpenAI(
-                model=settings.OPENAI_MODEL,
-                temperature=0.3,
-                timeout=30,
-                max_retries=3,
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="No LLM provider configured. Set OPENROUTER_API_KEY or OPENAI_API_KEY in .env",
-            )
-    return _llm
+    for attempt in range(max_retries):
+        entry = router.next_chat_model()
+        if entry is None:
+            raise RuntimeError("No chat models available")
+
+        try:
+            model_id = entry.model_id
+            llm = router.build_chat_llm(entry, temperature=temperature, streaming=streaming)
+
+            if streaming:
+                collected = []
+                async for chunk in llm.astream(messages):
+                    token = chunk.content
+                    collected.append(token)
+                content = "".join(collected)
+            else:
+                response = await llm.ainvoke(messages)
+                content = response.content
+
+            return content, model_id
+
+        except Exception as e:
+            error_str = str(e).lower()
+            last_error = e
+
+            if "429" in error_str or "rate limit" in error_str or "too many requests" in error_str:
+                router.mark_rate_limited(model_id, purpose="chat")
+                logger.warning("Model %s rate-limited, trying next (attempt %d/%d)", model_id, attempt + 1, max_retries)
+                await asyncio.sleep(1 * (attempt + 1))
+                continue
+
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
+
+            raise last_error
+
+    raise last_error or RuntimeError("All models exhausted")
+
+
+def _rewrite_query(query: str, history: str = "") -> str:
+    """
+    Rewrite user query into a better search query using simple heuristics
+    (no extra LLM cost). Expands abbreviations, adds context, normalizes.
+    """
+    expanded = query.strip()
+
+    expansions = {
+        r'\bpls\b': 'please',
+        r'\bhow\s+to\b': 'steps to',
+        r'\bwhat\s+is\b': 'explain',
+        r'\btell\s+me\b': '',
+        r'\bi\s+need\b': '',
+        r'\bplz\b': 'please',
+        r'\bthx\b': 'thanks',
+        r'\bu\b': 'you',
+        r'\bur\b': 'your',
+    }
+
+    for pattern, replacement in expansions.items():
+        expanded = re.sub(pattern, replacement, expanded, flags=re.IGNORECASE)
+
+    expanded = re.sub(r'\s+', ' ', expanded).strip()
+
+    if history and len(expanded.split()) <= 3:
+        recent = history.split('\n')[-1] if history else ''
+        expanded = f"{expanded} {recent[:100]}" if recent else expanded
+
+    return expanded
 
 
 class AIService:
@@ -129,13 +183,20 @@ class AIService:
         )
         history_messages = list(reversed(history_result.scalars().all()))
 
-        # --- 4. Search for relevant context via Pinecone ---
+        # --- 4. Rewrite query for better retrieval ---
+        history_text = "\n".join(
+            f"{'User' if m.role == 'user' else 'Assistant'}: {m.content[:200]}"
+            for m in history_messages[-3:]
+        ) if history_messages else ""
+        search_query = _rewrite_query(query, history_text)
+
+        # --- 5. Search for relevant context via hybrid search ---
         sources: List[AIChatSource] = []
         context_text = ""
 
         try:
             pinecone_results = await PineconeService.query_all_namespaces(
-                query_text=query,
+                query_text=search_query,
                 top_k_per_ns=10,
                 top_k_final=5,
             )
@@ -160,72 +221,112 @@ class AIService:
                         ))
 
                     context_parts.append(
-                        f"Source: {title}\nContent: {meta.get('text_snippet', '')}"
+                        f"[Source: {title}]\n{meta.get('text_snippet', '')}"
                     )
 
                 context_text = "\n\n---\n\n".join(context_parts)
 
-            # Fallback: if Pinecone returned nothing or is not configured,
-            # do in-memory search on KB articles
+            # Fallback: hybrid dense+sparse search on KB articles
             if not context_text:
-                query_embedding = await EmbeddingService.generate_embedding(query)
                 kb_result = await db.execute(
                     select(KBArticle).where(KBArticle.is_published == True)
                 )
                 articles = kb_result.scalars().all()
 
                 if articles:
-                    article_embeddings = []
-                    article_map = []
+                    kb_texts = []
+                    kb_map = []
                     for article in articles:
-                        chunks = EmbeddingService.chunk_text(
-                            f"{article.title}\n\n{article.body}"
+                        chunks = EmbeddingService.semantic_chunk_text(
+                            f"{article.title}\n\n{article.body}", max_tokens=512
                         )
                         for chunk in chunks:
-                            chunk_embedding = await EmbeddingService.generate_embedding(chunk)
-                            article_embeddings.append(chunk_embedding)
-                            article_map.append((article, chunk))
+                            kb_texts.append(chunk)
+                            kb_map.append((article, chunk))
 
-                    if article_embeddings:
-                        results = EmbeddingService.search_embeddings(
-                            query_embedding, article_embeddings, k=5
+                    if kb_texts:
+                        dense_results = []
+                        sparse_results = []
+
+                        query_embedding = await EmbeddingService.generate_embedding(search_query)
+                        article_embeddings = await EmbeddingService.generate_embeddings_batch(kb_texts)
+
+                        dense_results = EmbeddingService.search_embeddings(
+                            query_embedding, article_embeddings, k=10
                         )
-                        mmr_indices = EmbeddingService.mmr_rerank(
-                            query_embedding, article_embeddings, lambda_param=0.5, k=5
+
+                        bm25_index = EmbeddingService.build_bm25_index(kb_texts)
+                        sparse_results = EmbeddingService.bm25_search(search_query, bm25_index, top_k=10)
+
+                        hybrid_indices = EmbeddingService.hybrid_fusion(
+                            dense_results, sparse_results, top_k=5, alpha=0.7
                         )
 
                         seen_article_ids = set()
-                        for idx, score in results:
-                            article, chunk = article_map[idx]
-                            if article.id not in seen_article_ids:
+                        seen_chunks = set()
+                        for idx, score in hybrid_indices:
+                            article, chunk = kb_map[idx]
+                            chunk_key = f"{article.id}_{chunk[:50]}"
+                            if chunk_key not in seen_chunks and article.id not in seen_article_ids:
+                                seen_chunks.add(chunk_key)
+                                if len(seen_article_ids) < 3:
+                                    seen_article_ids.add(article.id)
                                 sources.append(AIChatSource(
                                     article_id=article.id,
                                     title=article.title,
-                                    relevance_score=round(score, 4),
+                                    relevance_score=round(float(score), 4),
                                     snippet=chunk[:300],
                                 ))
-                                seen_article_ids.add(article.id)
 
                         context_parts = []
-                        for idx in mmr_indices:
-                            article, chunk = article_map[idx]
+                        for idx, score in hybrid_indices:
+                            article, chunk = kb_map[idx]
                             context_parts.append(
-                                f"Source: {article.title}\nContent: {chunk}"
+                                f"[Source: {article.title}]\n{chunk}"
                             )
-                        context_text = "\n\n---\n\n".join(context_parts)
+                        context_text = "\n\n---\n\n".join(context_parts[:5])
+
+                        if not context_text:
+                            dense_reranked = EmbeddingService.mmr_rerank(
+                                query_embedding, article_embeddings, lambda_param=0.5, k=5
+                            )
+                            context_parts = []
+                            for idx in dense_reranked:
+                                article, chunk = kb_map[idx]
+                                context_parts.append(
+                                    f"[Source: {article.title}]\n{chunk}"
+                                )
+                            context_text = "\n\n---\n\n".join(context_parts)
         except Exception:
             context_text = ""
             sources = []
 
-        # --- 5. Build messages ---
+        # --- 6. Build messages with structured prompt ---
+        source_lines = []
+        for i, s in enumerate(sources, 1):
+            source_lines.append(
+                f"[{i}] \"{s.title}\" (relevance: {s.relevance_score:.2f})"
+            )
+        source_list = "\n".join(source_lines) if source_lines else "No sources found."
+
         system_content = (
-            "You are a helpful and professional support assistant for our Helpdesk. "
-            "Answer the user's question using ONLY the provided context below. "
-            "If the context does not contain enough information to answer, "
-            "say so honestly and suggest that the user create a support ticket. "
-            "Do NOT make up information or use external knowledge. "
-            "Keep answers concise, accurate, and helpful.\n\n"
-            f"Context:\n{context_text if context_text else 'No relevant context found.'}"
+            "You are a HelpDesk AI support assistant. Follow these rules strictly:\n\n"
+            "## RULES\n"
+            "1. Answer ONLY using the provided context below.\n"
+            "2. If context is insufficient, say so and suggest creating a ticket.\n"
+            "3. NEVER make up information or use external knowledge.\n"
+            "4. Cite sources using [Source: Title] after each claim.\n"
+            "5. Be concise, accurate, and helpful.\n"
+            "6. If the user asks a general question, first check if the context has the answer.\n\n"
+            "## REASONING\n"
+            "- Read the context carefully.\n"
+            "- Determine if the context contains the answer.\n"
+            "- If yes: answer with citations.\n"
+            "- If no: say 'I don't have enough information' and suggest a ticket.\n\n"
+            "## CONTEXT\n"
+            f"{context_text if context_text else 'No relevant context was found for this query.'}\n\n"
+            "## SOURCES AVAILABLE\n"
+            f"{source_list}"
         )
 
         messages = [SystemMessage(content=system_content)]
@@ -236,11 +337,13 @@ class AIService:
                 messages.append(AIMessage(content=msg.content))
         messages.append(HumanMessage(content=query))
 
-        # --- 6. Generate answer ---
+        # --- 7. Generate answer with model fallback ---
         confidence = 0.0
         try:
-            response = await get_llm().ainvoke(messages)
-            answer = response.content
+            answer, model_used = await _llm_ainvoke_with_fallback(
+                messages, temperature=0.3, max_retries=3,
+            )
+            logger.info("Chat answered using model: %s", model_used)
 
             if sources:
                 confidence = max(s.relevance_score for s in sources)
@@ -256,7 +359,7 @@ class AIService:
             )
             confidence = 0.0
 
-        # --- 7. Save assistant message ---
+        # --- 8. Save assistant message ---
         ai_msg = ChatMessage(
             session_id=session.id,
             role="assistant",
@@ -266,8 +369,8 @@ class AIService:
         db.add(ai_msg)
         await db.flush()
 
-        # --- 8. Build response ---
-        suggest_ticket = confidence < EmbeddingService.CONFIDENCE_THRESHOLD
+        # --- 9. Build response ---
+        suggest_ticket = confidence < CONFIDENCE_THRESHOLD
 
         return AIChatResponse(
             answer=answer,
@@ -326,12 +429,18 @@ class AIService:
         )
         history_messages = list(reversed(history_result.scalars().all()))
 
-        # --- Context retrieval via Pinecone ---
+        # --- Context retrieval via hybrid search ---
+        history_text = "\n".join(
+            f"{'User' if m.role == 'user' else 'Assistant'}: {m.content[:200]}"
+            for m in history_messages[-3:]
+        ) if history_messages else ""
+        search_query = _rewrite_query(query, history_text)
+
         sources: List[dict] = []
         context_text = ""
         try:
             pinecone_results = await PineconeService.query_all_namespaces(
-                query_text=query,
+                query_text=search_query,
                 top_k_per_ns=10,
                 top_k_final=5,
             )
@@ -352,54 +461,65 @@ class AIService:
                             "snippet": (meta.get("text_snippet", "") or "")[:300],
                         })
                     context_parts.append(
-                        f"Source: {title}\nContent: {meta.get('text_snippet', '')}"
+                        f"[Source: {title}]\n{meta.get('text_snippet', '')}"
                     )
                 context_text = "\n\n---\n\n".join(context_parts)
 
-            # Fallback in-memory search
+            # Hybrid dense+sparse fallback
             if not context_text:
                 kb_result = await db.execute(
                     select(KBArticle).where(KBArticle.is_published == True)
                 )
                 articles = kb_result.scalars().all()
                 if articles:
-                    query_embedding = await EmbeddingService.generate_embedding(query)
-                    article_embeddings = []
-                    article_map = []
+                    kb_texts = []
+                    kb_map = []
                     for article in articles:
-                        chunks = EmbeddingService.chunk_text(
-                            f"{article.title}\n\n{article.body}"
+                        chunks = EmbeddingService.semantic_chunk_text(
+                            f"{article.title}\n\n{article.body}", max_tokens=512
                         )
                         for chunk in chunks:
-                            chunk_embedding = await EmbeddingService.generate_embedding(chunk)
-                            article_embeddings.append(chunk_embedding)
-                            article_map.append((article, chunk))
+                            kb_texts.append(chunk)
+                            kb_map.append((article, chunk))
 
-                    if article_embeddings:
-                        results = EmbeddingService.search_embeddings(
-                            query_embedding, article_embeddings, k=5
+                    if kb_texts:
+                        query_embedding = await EmbeddingService.generate_embedding(search_query)
+                        article_embeddings = await EmbeddingService.generate_embeddings_batch(kb_texts)
+
+                        dense_results = EmbeddingService.search_embeddings(
+                            query_embedding, article_embeddings, k=10
                         )
+
+                        bm25_index = EmbeddingService.build_bm25_index(kb_texts)
+                        sparse_results = EmbeddingService.bm25_search(search_query, bm25_index, top_k=10)
+
+                        hybrid_indices = EmbeddingService.hybrid_fusion(
+                            dense_results, sparse_results, top_k=5, alpha=0.7
+                        )
+
                         seen_ids = set()
-                        for idx, score in results:
-                            article, chunk = article_map[idx]
-                            if article.id not in seen_ids:
+                        seen_chunks = set()
+                        for idx, score in hybrid_indices:
+                            article, chunk = kb_map[idx]
+                            ck = f"{article.id}_{chunk[:50]}"
+                            if ck not in seen_chunks and article.id not in seen_ids:
+                                seen_chunks.add(ck)
+                                if len(seen_ids) < 3:
+                                    seen_ids.add(article.id)
                                 sources.append({
                                     "article_id": article.id,
                                     "title": article.title,
-                                    "relevance_score": round(score, 4),
+                                    "relevance_score": round(float(score), 4),
                                     "snippet": chunk[:300],
                                 })
-                                seen_ids.add(article.id)
-                        mmr_indices = EmbeddingService.mmr_rerank(
-                            query_embedding, article_embeddings, lambda_param=0.5, k=5
-                        )
+
                         context_parts = []
-                        for idx in mmr_indices:
-                            article, chunk = article_map[idx]
+                        for idx, score in hybrid_indices:
+                            article, chunk = kb_map[idx]
                             context_parts.append(
-                                f"Source: {article.title}\nContent: {chunk}"
+                                f"[Source: {article.title}]\n{chunk}"
                             )
-                        context_text = "\n\n---\n\n".join(context_parts)
+                        context_text = "\n\n---\n\n".join(context_parts[:5])
         except Exception:
             context_text = ""
             sources = []
@@ -409,15 +529,31 @@ class AIService:
         # --- Send meta event ---
         yield f"data: {json.dumps({'type': 'meta', 'session_id': session.id, 'sources': sources, 'confidence': confidence})}\n\n"
 
-        # --- Build messages ---
+        # --- Build messages with improved prompt ---
+        source_lines = []
+        for i, s in enumerate(sources, 1):
+            source_lines.append(
+                f"[{i}] \"{s['title']}\" (relevance: {s['relevance_score']:.2f})"
+            )
+        source_list = "\n".join(source_lines) if source_lines else "No sources found."
+
         system_content = (
-            "You are a helpful and professional support assistant for our Helpdesk. "
-            "Answer the user's question using ONLY the provided context below. "
-            "If the context does not contain enough information to answer, "
-            "say so honestly and suggest that the user create a support ticket. "
-            "Do NOT make up information or use external knowledge. "
-            "Keep answers concise, accurate, and helpful.\n\n"
-            f"Context:\n{context_text if context_text else 'No relevant context found.'}"
+            "You are a HelpDesk AI support assistant. Follow these rules strictly:\n\n"
+            "## RULES\n"
+            "1. Answer ONLY using the provided context below.\n"
+            "2. If context is insufficient, say so and suggest creating a ticket.\n"
+            "3. NEVER make up information or use external knowledge.\n"
+            "4. Cite sources using [Source: Title] after each claim.\n"
+            "5. Be concise, accurate, and helpful.\n\n"
+            "## REASONING\n"
+            "- Read the context carefully.\n"
+            "- Determine if the context contains the answer.\n"
+            "- If yes: answer with citations.\n"
+            "- If no: say 'I don't have enough information' and suggest a ticket.\n\n"
+            "## CONTEXT\n"
+            f"{context_text if context_text else 'No relevant context was found for this query.'}\n\n"
+            "## SOURCES AVAILABLE\n"
+            f"{source_list}"
         )
 
         langchain_messages = [SystemMessage(content=system_content)]
@@ -428,27 +564,15 @@ class AIService:
                 langchain_messages.append(AIMessage(content=msg.content))
         langchain_messages.append(HumanMessage(content=query))
 
-        # --- Streaming generation ---
+        # --- Streaming generation with model fallback ---
         collected_tokens: List[str] = []
         try:
-            use_openrouter = settings.LLM_PROVIDER == "openrouter" and settings.OPENROUTER_API_KEY
-            streaming_llm = ChatOpenAI(
-                model=settings.OPENROUTER_MODEL if use_openrouter else settings.OPENAI_MODEL,
-                temperature=0.3,
-                timeout=30,
-                max_retries=3,
-                streaming=True,
-                base_url=settings.OPENROUTER_BASE_URL if use_openrouter else None,
-                api_key=settings.OPENROUTER_API_KEY if use_openrouter else None,
-                default_headers={
-                    "HTTP-Referer": "http://localhost:3000",
-                    "X-Title": "HelpDesk AI",
-                } if use_openrouter else None,
+            content, model_used = await _llm_ainvoke_with_fallback(
+                langchain_messages, temperature=0.3, streaming=True, max_retries=3,
             )
-            async for chunk in streaming_llm.astream(langchain_messages):
-                token = chunk.content
-                collected_tokens.append(token)
-                yield f"data: {json.dumps({'type': 'chunk', 'content': token})}\n\n"
+            collected_tokens = [content]
+            yield f"data: {json.dumps({'type': 'chunk', 'content': content})}\n\n"
+            logger.info("Stream answered using model: %s", model_used)
         except Exception:
             fallback = (
                 "I'm sorry, I'm having trouble connecting to my knowledge base right now. "
@@ -532,20 +656,9 @@ class AIService:
         )
 
         try:
-            use_or = settings.LLM_PROVIDER == "openrouter" and settings.OPENROUTER_API_KEY
-            summary_llm = ChatOpenAI(
-                model=settings.OPENROUTER_MODEL if use_or else settings.OPENAI_MODEL,
-                temperature=0.2,
-                timeout=30,
-                max_retries=3,
-                base_url=settings.OPENROUTER_BASE_URL if use_or else None,
-                api_key=settings.OPENROUTER_API_KEY if use_or else None,
-                default_headers={"HTTP-Referer": "http://localhost:3000", "X-Title": "HelpDesk AI"} if use_or else None,
+            summary, _ = await _llm_ainvoke_with_fallback(
+                [HumanMessage(content=prompt)], temperature=0.2, max_retries=2,
             )
-            response = await summary_llm.ainvoke(
-                [HumanMessage(content=prompt)]
-            )
-            summary = response.content
         except Exception:
             summary = (
                 f"**Ticket Summary: {ticket.subject}**\n\n"
@@ -657,20 +770,9 @@ class AIService:
         prompt = "".join(prompt_parts)
 
         try:
-            use_or = settings.LLM_PROVIDER == "openrouter" and settings.OPENROUTER_API_KEY
-            draft_llm = ChatOpenAI(
-                model=settings.OPENROUTER_MODEL if use_or else settings.OPENAI_MODEL,
-                temperature=0.4,
-                timeout=30,
-                max_retries=3,
-                base_url=settings.OPENROUTER_BASE_URL if use_or else None,
-                api_key=settings.OPENROUTER_API_KEY if use_or else None,
-                default_headers={"HTTP-Referer": "http://localhost:3000", "X-Title": "HelpDesk AI"} if use_or else None,
+            draft, _ = await _llm_ainvoke_with_fallback(
+                [HumanMessage(content=prompt)], temperature=0.4, max_retries=2,
             )
-            response = await draft_llm.ainvoke(
-                [HumanMessage(content=prompt)]
-            )
-            draft = response.content
         except Exception:
             draft = (
                 f"Dear User,\n\n"

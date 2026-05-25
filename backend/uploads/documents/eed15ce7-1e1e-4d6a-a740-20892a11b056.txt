@@ -1,0 +1,155 @@
+================================================================
+Starbit Games - Common Issues & Troubleshooting Guide
+================================================================
+
+1. PORTAL ACCESS ISSUES
+================================================================
+
+Problem: Portal not loading / white screen
+Solutions:
+  - Check your internet connection
+  - Try a different browser (Chrome 90+, Firefox 88+, Edge 90+ recommended)
+  - Clear browser cache: Settings > Privacy > Clear browsing data
+  - Disable browser extensions (some ad-blockers interfere)
+  - Try incognito/private mode
+  - Check https://status.starbitgames.com for service outages
+  - Restart your computer and try again
+  - If still not working, submit ticket to IT with screenshot
+
+Problem: Slow portal performance
+Solutions:
+  - Close unnecessary tabs (portal works best with under 10 tabs open)
+  - Check your VPN connection (VPNs can slow down portal access)
+  - Try connecting directly without VPN for testing
+  - Clear browser cache (instructions above)
+  - Report to IT if slowness persists beyond 30 minutes
+
+2. SUPPORT TICKET ISSUES
+================================================================
+
+Problem: Cannot create a new ticket
+Solutions:
+  - Verify you are logged in to your account
+  - Check that your account is active (contact manager if deactivated)
+  - Ensure all required fields are filled (subject, description, category)
+  - Description must be at least 10 characters
+  - Try refreshing the page and trying again
+  - If error persists, submit via email: tickets@starbitgames.com
+
+Problem: Cannot see my tickets
+Solutions:
+  - Check the filter settings (make sure it's not filtering by status)
+  - Try searching by ticket ID or keyword
+  - Agents/Admins: check if you have the correct view selected
+  - Tickets assigned to you appear under "My Tickets"
+  - Tickets you created appear under "Submitted by Me"
+
+Problem: Ticket status not updating
+Solutions:
+  - Refresh the page after 5 seconds
+  - Status changes may take up to 30 seconds to reflect
+  - Agent/Admin: ensure you click "Save" after changing status
+  - Contact IT if status hasn't updated after 5 minutes
+
+3. KNOWLEDGE BASE ISSUES
+================================================================
+
+Problem: Cannot find article in Knowledge Base
+Solutions:
+  - Try different search keywords (use simpler terms)
+  - Check the category filter (maybe set to wrong category)
+  - Clear search and browse categories one by one
+  - Articles must be published by an Admin to be visible
+  - Check if article was recently deleted or unpublished
+
+Problem: Knowledge Base search returning no results
+Solutions:
+  - Your query might be too specific (try 2-3 key words instead of full sentences)
+  - Try the AI Assistant instead (it can search uploaded documents too)
+  - Check if there are any published articles in your category
+  - Contact your department knowledge manager to create articles
+
+4. AI ASSISTANT ISSUES
+================================================================
+
+Problem: AI Assistant gives incorrect information
+Solutions:
+  - The AI only answers from uploaded documents and KB articles
+  - If information is outdated, ask an Admin to update the documents
+  - Provide feedback using thumbs up/down buttons
+  - Create a support ticket if you need human assistance
+  - Be more specific in your question (add context)
+
+Problem: AI Assistant says "No relevant context found"
+Solutions:
+  - The required information might not be in any uploaded document yet
+  - Ask an Admin to upload relevant documentation
+  - Create a support ticket for direct agent assistance
+  - Try rephrasing your question with different keywords
+
+Problem: AI Assistant streaming is slow
+Solutions:
+  - Response time depends on the AI model being used
+  - Complex questions take longer to process
+  - Check your internet connection speed
+  - The system automatically falls back to alternative models if one is slow
+
+5. NOTIFICATION ISSUES
+================================================================
+
+Problem: Not receiving email notifications
+Solutions:
+  - Check your Spam/Junk folder
+  - Add no-reply@starbitgames.com to your safe senders list
+  - Verify your email address in Settings > Profile
+  - Check notification preferences in Settings > Notifications
+  - Contact IT if you've verified everything above
+
+Problem: Notification bell shows unread but no notifications
+Solutions:
+  - Refresh the page
+  - Click "Mark All as Read" then refresh again
+  - Clear browser cache
+  - This is a known cache issue being fixed in the next release
+
+6. FILE UPLOAD ISSUES
+================================================================
+
+Problem: Cannot upload document to Knowledge Base
+Solutions:
+  - Only Agents and Admins can upload documents
+  - Allowed formats: PDF, DOCX, TXT only
+  - Maximum file size: 10 MB
+  - Maximum documents per Admin: 50
+  - File name should not contain special characters
+  - Ensure file is not corrupted (try opening it locally)
+
+Problem: Uploaded document shows "Processing" status for too long
+Solutions:
+  - Processing usually takes 10-60 seconds depending on file size
+  - Large documents (over 5 MB) may take 2-3 minutes
+  - If stuck on "Processing" for over 5 minutes, delete and re-upload
+  - Contact IT if issue persists
+
+7. VPN AND REMOTE ACCESS
+================================================================
+Remote employees must connect via Starbit VPN before accessing the portal.
+
+VPN Setup:
+  1. Download Cisco AnyConnect from https://vpn.starbitgames.com
+  2. Use your employee credentials to log in
+  3. Select "Starbit-Games-VPN" from the connection list
+  4. Once connected, access portal at https://portal.starbitgames.com
+  5. Disconnect VPN when not needed (affects internet speed)
+
+Common VPN Issues:
+  - Error "VPN connection failed": Check internet, retry after 30 seconds
+  - Error "Authentication failed": Verify credentials, reset VPN password
+  - Slow connection: Switch from "Full Tunnel" to "Split Tunnel" in settings
+  - VPN disconnecting frequently: Update Cisco AnyConnect to latest version
+
+================================================================
+Last Updated: May 2026
+Document Version: 3.0
+Owner: Technical Support Team, Starbit Games
+================================================================

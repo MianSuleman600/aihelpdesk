@@ -1,0 +1,151 @@
+================================================================
+Starbit Games - IT Policies & Employee Guidelines
+================================================================
+
+1. ACCEPTABLE USE POLICY
+================================================================
+
+1.1 Company Resources
+- Company computers, email, and network are for business use primarily
+- Limited personal use is allowed during breaks
+- Personal use must not interfere with job responsibilities
+- No streaming video or gaming on company devices during work hours
+- Company resources are monitored for security purposes
+
+1.2 Internet Usage
+- Do not visit inappropriate or illegal websites
+- Do not download unauthorized software (requires IT approval)
+- File sharing and torrent sites are strictly prohibited
+- Cloud storage must use approved providers (Starbit Box, OneDrive)
+- Personal cloud accounts (Google Drive, Dropbox) should not store company data
+
+1.3 Email Usage
+- Company email is for business communications
+- Do not send confidential information via unencrypted email
+- Do not open suspicious attachments or click unknown links
+- Report phishing attempts immediately to security@starbitgames.com
+- Email signature must follow the approved template
+- Auto-forwarding company email to personal accounts is prohibited
+
+2. SOFTWARE AND HARDWARE POLICY
+================================================================
+
+2.1 Approved Software
+Operating System: Windows 11 Enterprise, macOS 14 Sonoma or later
+Web Browsers: Chrome 90+, Firefox 88+, Edge 90+, Safari 14+
+Office Suite: Microsoft 365 (company-provided)
+Antivirus: CrowdStrike Falcon (mandatory, auto-installed)
+VPN: Cisco AnyConnect (for remote access)
+Password Manager: Bitwarden (recommended) or 1Password
+Communication: Microsoft Teams, Slack (department-specific)
+Development Tools: VS Code, IntelliJ IDEA, Git, Docker Desktop
+
+2.2 Software Installation
+- All software must be approved by IT before installation
+- Self-service software catalog available at https://software.starbitgames.com
+- Submit IT ticket for software not in catalog
+- Never install software from unofficial sources
+- Keep all software updated (automatic updates enabled by default)
+- Unauthorized software will be removed by IT without notice
+
+2.3 Hardware Policy
+- Company-issued laptops: Dell Latitude 5540 or MacBook Pro M3
+- Replacements every 3 years (submit ticket to IT)
+- Lost or stolen device: Report immediately to IT and Security
+- Remote wipe can be performed on lost devices
+- Do not remove company asset tags
+- External devices (USB drives) must be company-issued or approved
+- Personal devices: BYOD policy requires MDM enrollment
+
+3. DATA CLASSIFICATION AND HANDLING
+================================================================
+
+3.1 Data Classification Levels
+Public: Press releases, job postings, marketing materials
+Internal: Company policies, internal announcements, org charts
+Confidential: Employee records, financial data, project plans
+Restricted: Trade secrets, source code, customer data, passwords
+
+3.2 Data Handling Rules
+Public: No restrictions
+Internal: Store in company systems, do not share externally
+Confidential: Encrypt at rest and in transit, access on need-to-know basis
+Restricted: Highest security, audit logging required, strict access control
+
+3.3 Data Retention
+- Employee records: 7 years after termination
+- Financial records: 10 years (legal requirement)
+- Project documentation: 5 years after project completion
+- Support tickets: 3 years after resolution
+- Chat history: 1 year
+- Email: 2 years (automatic archiving)
+- Deleted data: Permanently erased after 30 days in trash
+
+4. INCIDENT RESPONSE PROCEDURE
+================================================================
+
+4.1 Security Incidents (report immediately to security@starbitgames.com)
+Phishing/Suspicious Email:
+  - Do not click any links or open attachments
+  - Forward the email to security@starbitgames.com
+  - Delete the email from your inbox
+  - If you clicked a link, inform IT immediately
+
+Suspected Malware/Virus:
+  - Disconnect from network immediately (unplug ethernet or disable WiFi)
+  - Do not shut down the computer
+  - Call IT Support at ext. 4400
+  - IT will run remote diagnostics
+  - Do not use the computer until IT confirms it is safe
+
+Data Breach (lost device, unauthorized access):
+  - Report to IT and Security within 1 hour
+  - IT will remotely lock/wipe the device
+  - Security will initiate breach assessment
+  - Do not discuss the breach with anyone except IT and Security
+  - Follow instructions from the Incident Response Team
+
+4.2 Non-Security Incidents
+Hardware Failure:
+  - Submit IT ticket with description of issue
+  - Loaner device available within 4 hours for critical roles
+  - Standard repair: 1-3 business days
+
+Software Crash:
+  - Try restarting the application
+  - Try restarting your computer
+  - Submit ticket with screenshots and error messages
+  - IT may remote into your system for diagnosis
+
+5. PASSWORD AND ACCOUNT POLICIES
+================================================================
+
+- Password minimum length: 10 characters
+- Must contain: uppercase, lowercase, number, special character
+- Password expiry: every 90 days
+- Cannot reuse last 5 passwords
+- Account lockout: 5 failed attempts, 30-minute lockout
+- Inactive accounts disabled after 90 days
+- Accounts deleted after 180 days of inactivity
+- Shared accounts are strictly prohibited
+- Each employee must have their own account
+- Contractors: accounts expire automatically based on contract end date
+
+6. REMOTE WORK POLICY
+================================================================
+
+- Remote work requires manager approval
+- Must connect via Starbit VPN for all company systems access
+- Workspace must be in a private area (no public WiFi)
+- Company laptop must be used (personal devices require MDM)
+- Screens must not be visible to others when working with confidential data
+- Report any security concerns immediately
+- Remote work equipment: company laptop, monitor, keyboard, mouse, headset
+- IT provides equipment setup support (submit ticket)
+- Internet minimum requirement: 25 Mbps download, 5 Mbps upload
+
+================================================================
+Last Updated: May 2026
+Document Version: 4.0
+Owner: IT Department, Starbit Games
+================================================================

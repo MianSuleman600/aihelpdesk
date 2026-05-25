@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ticketsAPI, kbAPI } from "@/lib/api"
+import { ApiError } from "@/lib/apiClient"
 import type { Category, Priority } from "@/types"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -33,7 +34,7 @@ export function CreateTicketModal({ open, onClose }: Props) {
       setPriority("medium")
       setCategoryId("")
       setError("")
-      kbAPI.getCategories().then(setCategories).catch(() => {})
+      kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
     }
   }, [open])
 
@@ -56,8 +57,7 @@ export function CreateTicketModal({ open, onClose }: Props) {
       router.push(`/dashboard/tickets/${ticket.id}`)
     } catch (err: unknown) {
       setError(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail || "Failed to create ticket."
+        err instanceof ApiError ? err.message : "Failed to create ticket."
       )
     } finally {
       setLoading(false)

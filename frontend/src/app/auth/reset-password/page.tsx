@@ -2,11 +2,13 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { authAPI } from '@/lib/api';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get('token');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,8 +20,8 @@ function ResetPasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -29,13 +31,8 @@ function ResetPasswordForm() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
-      if (!res.ok) throw new Error('Failed to reset password');
-      setSuccess(true);
+      await authAPI.resetPassword(token || '', password);
+      router.replace('/auth/login?message=Password+reset+successful');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed');
     } finally {
