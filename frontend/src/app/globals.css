@@ -2,12 +2,49 @@
 
 @import "tailwindcss";
 
-/* ============================================================
-   CSS Custom Properties — AI Helpdesk Design System
-   ============================================================ */
+@theme {
+  --color-surface: #13131b;
+  --color-surface-dim: #13131b;
+  --color-surface-bright: #393841;
+  --color-surface-container-lowest: #0d0d15;
+  --color-surface-container-low: #1b1b23;
+  --color-surface-container: #1f1f27;
+  --color-surface-container-high: #292932;
+  --color-surface-container-highest: #34343d;
+  --color-on-surface: #e4e1ed;
+  --color-on-surface-variant: #c7c4d7;
+
+  --color-primary: #10b981;
+  --color-primary-hover: #047857;
+  --color-primary-light: #34d399;
+  --color-primary-dark: #065f46;
+  --color-primary-lighter: #6ee7b7;
+
+  --color-secondary: #34d399;
+  --color-tertiary: #065f46;
+
+  --color-success: #059669;
+  --color-warning: #f59e0b;
+  --color-danger: #f43f5e;
+
+  --color-outline: #908fa0;
+  --color-outline-variant: #464554;
+}
 
 :root {
-  /* Surface colors */
+  --primary-rgb: 16, 185, 129;
+  --danger-rgb: 244, 63, 94;
+  --warning-rgb: 245, 158, 11;
+  --primary: #10b981;
+  --primary-hover: #047857;
+  --primary-light: #34d399;
+  --primary-lighter: #6ee7b7;
+  --primary-dark: #065f46;
+  --primary-darker: #022c22;
+
+  --secondary: #34d399;
+  --tertiary: #065f46;
+
   --surface: #13131b;
   --surface-dim: #13131b;
   --surface-bright: #393841;
@@ -19,35 +56,12 @@
   --on-surface: #e4e1ed;
   --on-surface-variant: #c7c4d7;
 
-  /* Brand colors (violet) */
-  --brand-50: #F4F1FF;
-  --brand-100: #EAE4FF;
-  --brand-200: #D4C9FF;
-  --brand-400: #9B85F5;
-  --brand-500: #7C5CFA;
-  --brand-600: #6340E8;
-  --brand-700: #4D2EC4;
-  --primary: #7C5CFA;
-  --primary-hover: #6340E8;
-
-  /* Accent colors (amber) */
-  --accent-300: #FCD97A;
-  --accent-400: #F5B942;
-  --accent-500: #E89B1A;
-  --accent-600: #C47A0A;
-
-  /* Status colors */
-  --success: #10b981;
+  --success: #059669;
   --warning: #f59e0b;
   --danger: #f43f5e;
-  --emerald: #10b981;
-  --rose: #f43f5e;
-
-  /* Outline */
   --outline: #908fa0;
   --outline-variant: #464554;
 
-  /* Layout */
   --sidebar-width: 260px;
   --header-height: 64px;
   --container-padding: 24px;
@@ -57,14 +71,15 @@
   --radius-xl: 24px;
 }
 
-/* ============================================================
-   Global Styles
-   ============================================================ */
+.sidebar-layout {
+  padding-left: var(--sidebar-width, 260px);
+}
+.sidebar-width {
+  width: var(--sidebar-width, 260px);
+}
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
 }
 
 html {
@@ -79,10 +94,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-/* ============================================================
-   Glassmorphism Utilities
-   ============================================================ */
 
 .glass {
   background: rgba(255, 255, 255, 0.03);
@@ -106,7 +117,6 @@ body {
   position: relative;
 }
 
-/* Subtle top-edge shine on cards */
 .glass-card::before {
   content: '';
   position: absolute;
@@ -114,35 +124,27 @@ body {
   left: 15%;
   right: 15%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(192, 193, 255, 0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   border-radius: 50%;
 }
 
-/* ============================================================
-   Gradient Utilities
-   ============================================================ */
-
 .gradient-primary {
-  background: linear-gradient(135deg, var(--indigo), var(--violet));
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-hero {
-  background: linear-gradient(135deg, var(--indigo) 0%, var(--violet) 50%, #a855f7 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 50%, var(--primary-dark) 100%);
 }
 
-/* ============================================================
-   Button Styles
-   ============================================================ */
-
 .btn-primary {
-  background: linear-gradient(135deg, var(--indigo), var(--violet));
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
   color: white;
   border: none;
   padding: 10px 24px;
@@ -172,7 +174,7 @@ body {
 }
 
 .btn-primary:hover {
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 6px 24px rgba(var(--primary-rgb), 0.45);
   transform: translateY(-1px);
 }
 
@@ -207,10 +209,6 @@ body {
   border-color: var(--outline);
 }
 
-/* ============================================================
-   Input Styles
-   ============================================================ */
-
 .input-field {
   width: 100%;
   padding: 11px 16px 11px 42px;
@@ -234,20 +232,19 @@ body {
 }
 
 .input-field:focus {
-  border-color: var(--indigo);
-  background: rgba(99, 102, 241, 0.06);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.06);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
 }
 
-/* Error state */
 .input-field.error {
-  border-color: rgba(244, 63, 94, 0.6);
-  background: rgba(244, 63, 94, 0.04);
+  border-color: rgba(var(--danger-rgb, 244, 63, 94), 0.6);
+  background: rgba(var(--danger-rgb, 244, 63, 94), 0.04);
 }
 
 .input-field.success {
-  border-color: rgba(16, 185, 129, 0.6);
-  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(var(--primary-rgb), 0.6);
+  background: rgba(var(--primary-rgb), 0.04);
 }
 
 textarea.input-field {
@@ -256,7 +253,6 @@ textarea.input-field {
   padding-left: 16px;
 }
 
-/* Password toggle button */
 .pw-toggle {
   position: absolute;
   right: 12px;
@@ -278,10 +274,6 @@ textarea.input-field {
   opacity: 1;
 }
 
-/* ============================================================
-   Alert Styles
-   ============================================================ */
-
 .alert {
   display: flex;
   align-items: flex-start;
@@ -294,26 +286,22 @@ textarea.input-field {
 }
 
 .alert-error {
-  background: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.2);
-  color: #ff8a9b;
+  background: rgba(var(--danger-rgb), 0.08);
+  border: 1px solid rgba(var(--danger-rgb), 0.2);
+  color: var(--danger);
 }
 
 .alert-success {
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  color: var(--primary-light);
 }
 
 .alert-info {
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
   color: var(--primary);
 }
-
-/* ============================================================
-   Password Strength Meter
-   ============================================================ */
 
 .strength-meter {
   display: flex;
@@ -329,14 +317,10 @@ textarea.input-field {
   transition: background 0.3s ease;
 }
 
-.strength-bar.s1 { background: var(--rose); }
-.strength-bar.s2 { background: var(--amber); }
-.strength-bar.s3 { background: #84cc16; }
-.strength-bar.s4 { background: var(--emerald); }
-
-/* ============================================================
-   Badge Styles
-   ============================================================ */
+.strength-bar.s1 { background: var(--danger); }
+.strength-bar.s2 { background: var(--warning); }
+.strength-bar.s3 { background: var(--primary-light); }
+.strength-bar.s4 { background: var(--primary); }
 
 .badge {
   display: inline-flex;
@@ -348,10 +332,6 @@ textarea.input-field {
   font-weight: 600;
   letter-spacing: 0.03em;
 }
-
-/* ============================================================
-   Divider
-   ============================================================ */
 
 .auth-divider {
   display: flex;
@@ -372,10 +352,6 @@ textarea.input-field {
   background: var(--outline-variant);
 }
 
-/* ============================================================
-   Scrollbar
-   ============================================================ */
-
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -394,10 +370,6 @@ textarea.input-field {
   background: var(--outline);
 }
 
-/* ============================================================
-   Animations
-   ============================================================ */
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -409,8 +381,8 @@ textarea.input-field {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.25); }
-  50%       { box-shadow: 0 0 36px rgba(99, 102, 241, 0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(var(--primary-rgb), 0.25); }
+  50%       { box-shadow: 0 0 36px rgba(var(--primary-rgb), 0.5); }
 }
 
 @keyframes shimmer {

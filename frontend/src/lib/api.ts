@@ -2,9 +2,9 @@ import { apiClient, tokenUtils } from './apiClient';
 import { ENDPOINTS } from '@/constants/endpoints';
 import type {
   User, Category, KBArticle, KBArticleCreate,
-  Ticket, TicketCreate, TicketUpdate, TicketMessage,
+  Ticket, TicketCreate, TicketUpdate, TicketAssign, TicketMessage,
   AIChatResponse, Notification, AnalyticsOverview, AIFeedbackCreate,
-  TokenResponse,
+  TokenResponse, UploadedDocument, DocumentListResponse,
 } from '@/types';
 
 export { tokenUtils };
@@ -98,6 +98,18 @@ export const ticketsAPI = {
     return apiClient.patch<Ticket>(ENDPOINTS.tickets.update(id), payload);
   },
 
+  close: async (id: string): Promise<Ticket> => {
+    return apiClient.post<Ticket>(`${ENDPOINTS.tickets.detail(id)}/close`, {});
+  },
+
+  reopen: async (id: string): Promise<Ticket> => {
+    return apiClient.post<Ticket>(`${ENDPOINTS.tickets.detail(id)}/reopen`, {});
+  },
+
+  assign: async (id: string, payload: TicketAssign): Promise<Ticket> => {
+    return apiClient.post<Ticket>(`${ENDPOINTS.tickets.detail(id)}/assign`, payload);
+  },
+
   getMessages: async (ticketId: string): Promise<TicketMessage[]> => {
     return apiClient.get<TicketMessage[]>(ENDPOINTS.tickets.messages(ticketId));
   },
@@ -139,6 +151,35 @@ export const notificationsAPI = {
 
   markAllRead: async (): Promise<void> => {
     return apiClient.patch(ENDPOINTS.notifications.readAll, {});
+  },
+};
+
+export const documentsAPI = {
+  list: async (): Promise<DocumentListResponse> => {
+    return apiClient.get<DocumentListResponse>(ENDPOINTS.documents.list);
+  },
+
+  get: async (id: string): Promise<UploadedDocument> => {
+    return apiClient.get<UploadedDocument>(ENDPOINTS.documents.detail(id));
+  },
+
+  upload: async (file: File): Promise<{ message: string; document: UploadedDocument }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiClient.post<{ message: string; document: UploadedDocument }>(
+      ENDPOINTS.documents.upload,
+      form,
+    );
+  },
+
+  delete: async (id: string): Promise<void> => {
+    return apiClient.delete(ENDPOINTS.documents.delete(id));
+  },
+
+  reindex: async (id: string): Promise<{ message: string; status: string; chunk_count: number }> => {
+    return apiClient.post<{ message: string; status: string; chunk_count: number }>(
+      ENDPOINTS.documents.reindex(id), {},
+    );
   },
 };
 

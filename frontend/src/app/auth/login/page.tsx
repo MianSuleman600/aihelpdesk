@@ -32,26 +32,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: 'var(--surface)' }}>
+    <div className="min-h-screen w-full flex items-center justify-center " style={{ background: 'var(--surface)' }}>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--indigo)', filter: 'blur(120px)' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--violet)', filter: 'blur(120px)' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary)', filter: 'blur(120px)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary-hover)', filter: 'blur(120px)' }} />
       </div>
 
       <div className="w-full max-w-md relative animate-fade-in">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4 animate-pulse-glow">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 animate-pulse-glow" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold gradient-text">AI Helpdesk</h1>
+          <h1 className="text-2xl font-bold" style={{background:'linear-gradient(135deg, var(--primary-light), var(--primary))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>AI Helpdesk</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>Sign in to your account</p>
         </div>
 
-        <div className="glass-card p-8">
+        <div className="glass-card p-10">
           {error && (
             <div className="alert alert-error mb-6">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
@@ -63,7 +63,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6 ">
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--on-surface-variant)' }}>Email</label>
               <div className="relative">
@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium" style={{ color: 'var(--on-surface-variant)' }}>Password</label>
-                <Link href="/forgot-password" className="text-xs font-medium hover:underline" style={{ color: 'var(--primary)' }}>Forgot password?</Link>
+                <Link href="/auth/forgot-password" className="text-xs font-medium hover:underline" style={{ color: 'var(--primary)' }}>Forgot password?</Link>
               </div>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--on-surface-variant)', opacity: 0.7 }} />
@@ -103,7 +103,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full justify-center py-3">
+            <button type="submit" disabled={isLoading} className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white transition-all shadow-lg hover:-translate-y-0.5 flex items-center gap-2" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
               {isLoading && <Loader2 size={16} className="animate-spin" />}
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>

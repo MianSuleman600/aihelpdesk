@@ -9,21 +9,29 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from app.core.config import settings
+from app.core.logging import setup_logging, get_logger
 from app.api.v1.router import api_router
 from app.db.session import engine
 from app.db.base import Base
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
-    # Startup
-    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    print(f"📝 Environment: {settings.ENVIRONMENT}")
-    print(f"📖 API Docs: http://localhost:8000/docs")
+    setup_logging()
+    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+
+    # Auto-create tables in development
+    if settings.DEBUG:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables synced")
+
     yield
-    # Shutdown
-    print("👋 Shutting down...")
+    logger.info("Shutting down...")
 
 
 app = FastAPI(

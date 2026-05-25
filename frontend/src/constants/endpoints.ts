@@ -38,9 +38,16 @@ export const ENDPOINTS = {
     readAll: '/notifications/read-all',
   },
   admin: {
-    analytics: '/admin/analytics',
+    analytics: '/analytics/overview',
     users: '/admin/users',
     userDetail: (id: string) => `/admin/users/${id}`,
+  },
+  documents: {
+    list: '/documents',
+    detail: (id: string) => `/documents/${id}`,
+    upload: '/documents/upload',
+    delete: (id: string) => `/documents/${id}`,
+    reindex: (id: string) => `/documents/${id}/reindex`,
   },
 } as const;
 

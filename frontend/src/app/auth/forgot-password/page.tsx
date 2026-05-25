@@ -20,8 +20,13 @@ export default function ForgotPasswordPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      if (!res.ok) throw new Error('Failed to send reset email');
-      setSuccess(true);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to send reset email');
+      if (data.reset_token) {
+        window.location.href = `/auth/reset-password?token=${data.reset_token}`;
+      } else {
+        setSuccess(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -30,20 +35,20 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--surface)' }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--surface)' }}>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--indigo)', filter: 'blur(120px)' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--violet)', filter: 'blur(120px)' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary)', filter: 'blur(120px)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary-hover)', filter: 'blur(120px)' }} />
       </div>
       <div className="w-full max-w-md relative animate-fade-in">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
             <Mail size={24} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold gradient-text">Forgot Password</h1>
+          <h1 className="text-2xl font-bold" style={{background:'linear-gradient(135deg, var(--primary-light), var(--primary))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>Forgot Password</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>Enter your email to receive a reset link</p>
         </div>
-        <div className="glass-card p-8">
+        <div className="glass-card p-10">
           {success ? (
             <div className="text-center py-4">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
@@ -51,10 +56,10 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--on-surface)' }}>Check your email</h2>
               <p className="text-sm mb-6" style={{ color: 'var(--on-surface-variant)' }}>We've sent a password reset link to <strong>{email}</strong></p>
-              <Link href="/auth/login" className="btn-primary w-full justify-center py-3">Back to Login</Link>
+              <Link href="/auth/login" className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white text-center block shadow-lg" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>Back to Login</Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div className="alert alert-error">
                   <span>{error}</span>
@@ -67,7 +72,7 @@ export default function ForgotPasswordPage() {
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className="input-field" required />
                 </div>
               </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              <button type="submit" disabled={loading} className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white transition-all shadow-lg hover:-translate-y-0.5 flex items-center gap-2" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </button>

@@ -1,9 +1,7 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+"use client"
 
-/* ============================================================
-   ScrollArea — lightweight scroll container
-   ============================================================ */
+import * as React from "react"
+import { cn } from "@/lib/utils"
 
 const ScrollArea = React.forwardRef<
   HTMLDivElement,
@@ -11,12 +9,12 @@ const ScrollArea = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("relative overflow-auto", className)}
+    className={cn("overflow-y-auto custom-scrollbar", className)}
     {...props}
   >
     {children}
   </div>
-));
-ScrollArea.displayName = "ScrollArea";
+))
+ScrollArea.displayName = "ScrollArea"
 
-export { ScrollArea };
+export { ScrollArea }

@@ -1,99 +1,138 @@
 "use client";
-/* ============================================================
-   Sidebar Navigation — matches Stitch Design 1 sidebar
-   ============================================================ */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard, BookOpen, Sparkles, Ticket, Bell,
-  BarChart3, Users, FileEdit, LogOut, HelpCircle, Settings, ChevronLeft, ChevronRight,
-} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { cn, getInitials } from "@/lib/utils";
-import { NAV_ITEMS, ADMIN_NAV_ITEMS, APP_NAME } from "@/lib/constants";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Sparkles,
+  Ticket,
+  BookOpen,
+  Settings,
+  LogOut,
+  Zap,
+  BarChart3,
+  Users,
+  FileEdit,
+  Upload,
+} from "lucide-react";
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  LayoutDashboard, BookOpen, Sparkles, Ticket, Bell,
-  BarChart3, Users, FileEdit, Settings, HelpCircle,
-};
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/ai-chat", label: "AI Assistant", icon: Sparkles },
+  { href: "/dashboard/tickets", label: "My Tickets", icon: Ticket },
+  { href: "/dashboard/kb", label: "Knowledge Base", icon: BookOpen },
+];
+
+const ADMIN_NAV_ITEMS = [
+  { href: "/dashboard/admin", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
+  { href: "/dashboard/admin/kb", label: "Manage KB", icon: FileEdit },
+  { href: "/dashboard/admin/documents", label: "Documents", icon: Upload },
+];
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const isAdmin = user?.role === "admin";
-  const isAgent = user?.role === "agent" || isAdmin;
 
   return (
-    <aside
-      className="fixed left-0 top-0 bottom-0 z-40 flex flex-col glass transition-all duration-300"
-      style={{
-        width: collapsed ? 72 : "var(--sidebar-width)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    // FIX 1: Changed h-screen to fixed height approach, ensure no overflow clipping
+    <aside className="w-[240px] flex-shrink-0 flex flex-col border-r border-white/5 bg-[var(--surface-container-lowest)]">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-white/5">
-        <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shrink-0">
-          <Sparkles size={18} className="text-white" />
+      <div className="px-5 h-16 flex items-center gap-2.5 shrink-0 border-b border-white/5">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))' }}
+        >
+          <Zap size={15} className="text-white" strokeWidth={2.5} />
         </div>
-        {!collapsed && (
-          <span className="text-lg font-bold tracking-tight gradient-text">{APP_NAME}</span>
-        )}
+        <span className="text-[15px] font-bold tracking-tight text-white leading-none">
+          HelpDesk <span style={{ color: 'var(--primary)' }}>AI</span>
+        </span>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 overflow-y-auto">
-        <div className="space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 min-h-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest px-3 mb-2.5 text-white/25">
+          Main Menu
+        </p>
+
+        <div className="space-y-0.5">
           {NAV_ITEMS.map((item) => {
-            const Icon = ICON_MAP[item.icon] || LayoutDashboard;
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active =
+              pathname === item.href ||
+              (pathname.startsWith(item.href + "/") && item.href !== "/dashboard");
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 relative",
                   active
-                    ? "bg-[var(--indigo)]/15 text-[var(--primary)] border border-[var(--indigo)]/20"
-                    : "text-[var(--on-surface-variant)] hover:bg-white/5 hover:text-[var(--on-surface)] border border-transparent",
+                    ? "text-white"
+                    : "text-white/45 hover:text-white/80 hover:bg-white/5"
                 )}
+                style={active ? {
+                  background: 'rgba(var(--primary-rgb), 0.12)',
+                  boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.2)',
+                } : undefined}
               >
-                <Icon size={20} className="shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {active && (
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
+                    style={{
+                      background: 'var(--primary)',
+                      boxShadow: '0 0 8px rgba(var(--primary-rgb), 0.6)',
+                    }}
+                  />
+                )}
+                <item.icon
+                  size={16}
+                  strokeWidth={active ? 2.2 : 1.8}
+                  style={{ color: active ? 'var(--primary)' : undefined, flexShrink: 0 }}
+                />
+                <span className="leading-none">{item.label}</span>
               </Link>
             );
           })}
         </div>
 
-        {/* Admin section */}
-        {isAdmin && (
+        {user?.role === "admin" && (
           <>
-            <div className="my-4 mx-3 border-t border-white/5" />
-            {!collapsed && (
-              <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--on-surface-variant)]/60">
-                Administration
-              </p>
-            )}
-            <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest px-3 mb-2.5 mt-6 text-white/25">
+              Administration
+            </p>
+            <div className="space-y-0.5">
               {ADMIN_NAV_ITEMS.map((item) => {
-                const Icon = ICON_MAP[item.icon] || LayoutDashboard;
-                const active = pathname === item.href;
+                const active = pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 relative",
                       active
-                        ? "bg-[var(--indigo)]/15 text-[var(--primary)] border border-[var(--indigo)]/20"
-                        : "text-[var(--on-surface-variant)] hover:bg-white/5 hover:text-[var(--on-surface)] border border-transparent",
+                        ? "text-white"
+                        : "text-white/45 hover:text-white/80 hover:bg-white/5"
                     )}
+                    style={active ? {
+                      background: 'rgba(var(--primary-rgb), 0.12)',
+                      boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.2)',
+                    } : undefined}
                   >
-                    <Icon size={20} className="shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
+                    {active && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
+                        style={{ background: 'var(--primary)', boxShadow: '0 0 8px rgba(var(--primary-rgb), 0.6)' }}
+                      />
+                    )}
+                    <item.icon
+                      size={16}
+                      strokeWidth={active ? 2.2 : 1.8}
+                      style={{ color: active ? 'var(--primary)' : undefined, flexShrink: 0 }}
+                    />
+                    <span className="leading-none">{item.label}</span>
                   </Link>
                 );
               })}
@@ -102,35 +141,45 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="mx-3 mb-2 p-2 rounded-lg text-[var(--on-surface-variant)] hover:bg-white/5 transition-colors flex items-center justify-center"
-      >
-        {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-      </button>
+      <div className="shrink-0 px-3 pb-4 pt-3 border-t border-white/5 bg-[var(--surface-container-lowest)]">
+        <Link
+          href="/dashboard/settings"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 mb-2",
+            pathname.startsWith("/dashboard/settings")
+              ? "text-white bg-white/5"
+              : "text-white/40 hover:text-white/70 hover:bg-white/5"
+          )}
+        >
+          <Settings size={16} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+          <span className="leading-none">Settings</span>
+        </Link>
 
-      {/* User footer */}
-      <div className="px-3 pb-4 border-t border-white/5 pt-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {getInitials(user?.name || "U")}
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-[var(--on-surface-variant)] capitalize">{user?.role}</p>
-            </div>
-          )}
-          {!collapsed && (
-            <button
-              onClick={logout}
-              className="p-2 rounded-lg text-[var(--on-surface-variant)] hover:text-[var(--rose)] hover:bg-white/5 transition-colors"
-              title="Logout"
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl group border border-white/5 bg-white/5">
+          <div className="relative shrink-0">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold uppercase"
+              style={{ background: 'rgba(var(--primary-rgb), 0.18)', color: 'var(--primary)' }}
             >
-              <LogOut size={16} />
-            </button>
-          )}
+              {user?.name ? user.name.charAt(0) : "U"}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--surface-container-lowest)] bg-[var(--success)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-white truncate leading-tight">
+              {user?.name || "User"}
+            </p>
+            <p className="text-[11px] capitalize text-white/35 leading-tight mt-0.5">
+              {user?.role || "User"}
+            </p>
+          </div>
+          <button
+            onClick={logout}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70"
+            title="Log out"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
     </aside>

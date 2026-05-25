@@ -1,21 +1,24 @@
 """
-AI Assistant endpoints: chat, summarize, draft reply.
-Placeholder implementations - will integrate LangChain + Pinecone + OpenAI.
+AI Assistant endpoints: chat, summarize, draft reply, feedback.
+Integrates LangChain + OpenAI for RAG-grounded answers.
 """
 
+import json
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db.session import get_db
-from app.models.models import User, Ticket, TicketMessage, ChatSession, ChatMessage
+from app.models.models import User, Ticket, TicketMessage, ChatSession, ChatMessage, AIFeedback
 from app.schemas.schemas import (
     AIChatRequest, AIChatResponse, AIChatSource,
     AISummarizeRequest, AIDraftReplyRequest,
     AIFeedbackCreate, AIFeedbackResponse,
 )
-from app.models.models import AIFeedback
 from app.api.deps import get_current_user, require_agent_or_admin
+from app.services.ai_service import AIService
+from app.services.embedding_service import EmbeddingService
 
 router = APIRouter()
 
@@ -28,56 +31,46 @@ async def ai_chat(
 ):
     """
     AI Chat - Ask questions and get KB-grounded answers.
-    
+
     Pipeline:
     1. Generate embedding for user query
-    2. Search Pinecone for relevant KB chunks
+    2. Search KB for relevant chunks via cosine similarity + MMR
     3. Build prompt with retrieved context
-    4. Generate answer via OpenAI with citations
-    5. Return answer + sources
+    4. Generate answer via OpenAI
+    5. Return answer + sources + confidence
     """
-    # TODO: Integrate RAG pipeline (LangChain + Pinecone + OpenAI)
-    # For now, return a placeholder response
-
-    # Create or retrieve chat session
-    session_id = data.session_id
-    if not session_id:
-        session = ChatSession(user_id=current_user.id, title=data.query[:50])
-        db.add(session)
-        await db.flush()
-        session_id = session.id
-
-    # Save user message
-    user_msg = ChatMessage(
-        session_id=session_id,
-        role="user",
-        content=data.query,
+    result = await AIService.chat(
+        query=data.query,
+        session_id=data.session_id,
+        db=db,
+        current_user=current_user,
     )
-    db.add(user_msg)
+    return result
 
-    # Placeholder AI response
-    ai_answer = (
-        f"Thank you for your question about: '{data.query}'. "
-        "This is a placeholder response. Once the RAG pipeline is connected, "
-        "I will search the Knowledge Base and provide grounded answers with citations."
-    )
 
-    # Save AI message
-    ai_msg = ChatMessage(
-        session_id=session_id,
-        role="assistant",
-        content=ai_answer,
-        sources=[],
-    )
-    db.add(ai_msg)
-    await db.flush()
-
-    return AIChatResponse(
-        answer=ai_answer,
-        sources=[],
-        confidence=0.0,
-        session_id=session_id,
-        suggest_ticket=True,
+@router.post("/chat/stream")
+async def ai_chat_stream(
+    data: AIChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    SSE streaming version of AI Chat.
+    Yields events: meta (sources), chunk (token), done (full content).
+    """
+    return StreamingResponse(
+        AIService.streaming_chat(
+            query=data.query,
+            session_id=data.session_id,
+            db=db,
+            current_user=current_user,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -91,29 +84,11 @@ async def summarize_ticket(
     AI Ticket Summarization - Generate a summary of ticket conversation.
     Agent/Admin only.
     """
-    # Fetch ticket and messages
-    result = await db.execute(select(Ticket).where(Ticket.id == data.ticket_id))
-    ticket = result.scalar_one_or_none()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-
-    msgs_result = await db.execute(
-        select(TicketMessage)
-        .where(TicketMessage.ticket_id == data.ticket_id)
-        .order_by(TicketMessage.created_at.asc())
+    result = await AIService.summarize_ticket(
+        ticket_id=data.ticket_id,
+        db=db,
     )
-    messages = msgs_result.scalars().all()
-
-    # TODO: Integrate OpenAI summarization
-    summary = (
-        f"**Ticket Summary: {ticket.subject}**\n\n"
-        f"Status: {ticket.status.value} | Priority: {ticket.priority.value}\n"
-        f"Total messages: {len(messages)}\n\n"
-        "This is a placeholder summary. Integration with OpenAI will provide "
-        "an intelligent summary of the full ticket conversation."
-    )
-
-    return {"summary": summary, "message_count": len(messages)}
+    return result
 
 
 @router.post("/draft-reply")
@@ -126,23 +101,11 @@ async def draft_reply(
     AI Draft Reply - Generate a suggested response for a ticket.
     Agent/Admin only.
     """
-    # Fetch ticket
-    result = await db.execute(select(Ticket).where(Ticket.id == data.ticket_id))
-    ticket = result.scalar_one_or_none()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-
-    # TODO: Integrate OpenAI + RAG for draft generation
-    draft = (
-        f"Dear User,\n\n"
-        f"Thank you for reaching out regarding '{ticket.subject}'.\n\n"
-        "This is a placeholder draft reply. Once connected to the AI pipeline, "
-        "it will generate a professional response based on the ticket context "
-        "and relevant Knowledge Base articles.\n\n"
-        "Best regards,\nSupport Team"
+    result = await AIService.draft_reply(
+        ticket_id=data.ticket_id,
+        db=db,
     )
-
-    return {"draft": draft, "is_ai_generated": True}
+    return result
 
 
 @router.post("/feedback", response_model=AIFeedbackResponse, status_code=201)

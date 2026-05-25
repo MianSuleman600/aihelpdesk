@@ -38,7 +38,7 @@ export default function KBArticleDetailPage() {
       </button>
       <article className="glass-card p-8 animate-fade-in">
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {article.tags.map(t=><span key={t} className="badge bg-[var(--indigo)]/15 text-[var(--primary)]"><Tag size={10}/>{t}</span>)}
+          {article.tags.map(t=><span key={t} className="badge bg-[var(--primary)]/15 text-[var(--primary)]"><Tag size={10}/>{t}</span>)}
         </div>
         <h1 className="text-3xl font-bold mb-4 leading-tight">{article.title}</h1>
         <div className="flex items-center gap-4 text-sm text-[var(--on-surface-variant)] mb-8 pb-6 border-b border-white/5">

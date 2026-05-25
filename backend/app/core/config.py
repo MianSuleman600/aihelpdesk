@@ -29,15 +29,38 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
-    # Pinecone
+    # Pinecone Vector DB
     PINECONE_API_KEY: str = ""
     PINECONE_ENVIRONMENT: str = "us-east-1"
     PINECONE_INDEX_NAME: str = "helpdesk-kb"
+    PINECONE_EMBEDDING_DIMENSION: int = 1536
+
+    # OpenRouter (OpenAI-compatible, for free LLM models)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = "deepseek/deepseek-chat"
+    # Fallback: if OpenRouter key is empty, use OpenAI directly
+    LLM_PROVIDER: str = "openrouter"  # "openrouter" or "openai"
+
+    # Document Upload Limits
+    MAX_DOCUMENTS_PER_ADMIN: int = 50
+    MAX_UPLOAD_SIZE_MB: int = 10
+    ALLOWED_EXTENSIONS: list = [".pdf", ".docx", ".txt"]
+    UPLOAD_DIR: str = "uploads/documents"
 
     # Supabase
     SUPABASE_URL: str = "https://your-project.supabase.co"
     SUPABASE_KEY: str = "your-supabase-anon-key"
     SUPABASE_SERVICE_KEY: str = "your-supabase-service-key"
+
+    # SMTP (Email)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "HelpDesk AI"
+    SMTP_USE_TLS: bool = True
 
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"

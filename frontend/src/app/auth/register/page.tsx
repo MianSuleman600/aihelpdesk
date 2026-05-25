@@ -53,7 +53,7 @@ export default function RegisterPage() {
     try {
       await authAPI.register(name, email, password);
       setSuccess(true);
-      setTimeout(() => router.push('/login?message=Account created successfully'), 2000);
+      setTimeout(() => router.push('/auth/login?message=Account created successfully'), 2000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
@@ -62,26 +62,26 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--surface)' }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--surface)' }}>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--indigo)', filter: 'blur(120px)' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--violet)', filter: 'blur(120px)' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary)', filter: 'blur(120px)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary-hover)', filter: 'blur(120px)' }} />
       </div>
 
       <div className="w-full max-w-md relative animate-fade-in">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4 animate-pulse-glow">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 animate-pulse-glow" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold gradient-text">AI Helpdesk</h1>
+          <h1 className="text-2xl font-bold" style={{background:'linear-gradient(135deg, var(--primary-light), var(--primary))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>AI Helpdesk</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>Create your account</p>
         </div>
 
-        <div className="glass-card p-8">
+        <div className="glass-card p-10">
           {success && (
             <div className="alert alert-success mb-6">
               <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
@@ -100,7 +100,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--on-surface-variant)' }}>Full Name</label>
               <div className="relative">
@@ -185,7 +185,7 @@ export default function RegisterPage() {
               {confirmOk && <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--emerald)' }}><CheckCircle2 size={11} /> Passwords match</p>}
             </div>
 
-            <button type="submit" disabled={loading || success} className="btn-primary w-full justify-center py-3" style={{ marginTop: '8px' }}>
+            <button type="submit" disabled={loading || success} className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white transition-all shadow-lg hover:-translate-y-0.5 flex items-center gap-2" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading ? 'Creating account...' : 'Create Account'}
             </button>

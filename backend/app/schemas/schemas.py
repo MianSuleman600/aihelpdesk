@@ -155,6 +155,16 @@ class TicketUpdate(BaseModel):
     category_id: Optional[str] = None
 
 
+class UserBrief(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: UserRole
+
+    class Config:
+        from_attributes = True
+
+
 class TicketResponse(BaseModel):
     id: str
     subject: str
@@ -167,6 +177,8 @@ class TicketResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime] = None
+    created_by: Optional[UserBrief] = None
+    assigned_to: Optional[UserBrief] = None
 
     class Config:
         from_attributes = True
@@ -185,9 +197,53 @@ class TicketMessageResponse(BaseModel):
     is_internal: bool
     is_ai_draft: bool
     created_at: datetime
+    sender_name: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class TicketAssign(BaseModel):
+    assigned_to_id: str = Field(..., description="User ID to assign the ticket to")
+
+
+# ============================================================
+# Document Upload Schemas
+# ============================================================
+
+class DocumentResponse(BaseModel):
+    id: str
+    title: str
+    filename: str
+    file_type: str
+    file_size: int
+    status: str
+    error_message: Optional[str] = None
+    chunk_count: int = 0
+    uploaded_by_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentListResponse(BaseModel):
+    documents: List[DocumentResponse]
+    total: int
+    limit: int = 50
+    max_documents: int = 50
+
+
+class DocumentUploadResponse(BaseModel):
+    message: str
+    document: DocumentResponse
+
+
+class ReindexResponse(BaseModel):
+    message: str
+    status: str
+    chunk_count: int
 
 
 # ============================================================

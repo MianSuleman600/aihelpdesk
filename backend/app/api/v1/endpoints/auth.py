@@ -1,17 +1,28 @@
 """
-Authentication endpoints: register, login, profile.
+Authentication endpoints: register, login, profile, password management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel, EmailStr
 
 from app.db.session import get_db
 from app.models.models import User
 from app.schemas.schemas import UserRegister, UserLogin, UserResponse, Token
 from app.core.security import hash_password, verify_password, create_access_token
 from app.api.deps import get_current_user
+from app.services.auth_service import AuthService
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
 
 router = APIRouter()
 
@@ -60,6 +71,34 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         )
 
     access_token = create_access_token(data={"sub": user.id, "role": user.role.value})
+    return Token(access_token=access_token)
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset token."""
+    return await AuthService.request_password_reset(body.email, db)
+
+
+@router.post("/reset-password")
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using a valid reset token."""
+    return await AuthService.reset_password(body.token, body.password, db)
+
+
+@router.post("/refresh")
+async def refresh_token(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Refresh the JWT access token."""
+    access_token = create_access_token(data={"sub": current_user.id, "role": current_user.role.value})
     return Token(access_token=access_token)
 
 

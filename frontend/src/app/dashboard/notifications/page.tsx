@@ -39,17 +39,17 @@ export default function NotificationsPage() {
       </div>
       <div className="flex gap-2">
         {(["all","unread"] as const).map(f=>(
-          <button key={f} onClick={()=>setFilter(f)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${filter===f?"bg-[var(--indigo)]/15 text-[var(--primary)] border border-[var(--indigo)]/20":"text-[var(--on-surface-variant)] hover:bg-white/5 border border-transparent"}`}>{f}</button>
+          <button key={f} onClick={()=>setFilter(f)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${filter===f?"bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/20":"text-[var(--on-surface-variant)] hover:bg-white/5 border border-transparent"}`}>{f}</button>
         ))}
       </div>
       {loading ? (
         <div className="space-y-3">{Array.from({length:5}).map((_,i)=><div key={i} className="skeleton h-16 w-full"/>)}</div>
       ) : notifications.length > 0 ? (
-        <div className="glass-card overflow-hidden divide-y divide-white/3">
+        <div className="glass-card overflow-hidden divide-y divide-white/5">
           {notifications.map(n=>(
-            <div key={n.id} className={`px-5 py-4 flex items-start gap-4 hover:bg-white/3 transition-colors cursor-pointer ${!n.is_read?"bg-[var(--indigo)]/5":""}`}
+            <div key={n.id} className={`px-5 py-4 flex items-start gap-4 hover:bg-white/3 transition-colors cursor-pointer ${!n.is_read?"bg-[var(--primary)]/5":""}`}
               onClick={()=>{if(!n.is_read)markRead(n.id); if(n.link)router.push(n.link);}}>
-              <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.is_read?"bg-transparent":"bg-[var(--indigo)]"}`}/>
+              <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.is_read?"bg-transparent":"bg-[var(--primary)]"}`}/>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{n.title}</p>
                 <p className="text-sm text-[var(--on-surface-variant)] mt-0.5">{n.message}</p>

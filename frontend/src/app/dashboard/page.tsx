@@ -1,25 +1,38 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { kbAPI, ticketsAPI, notificationsAPI } from "@/lib/api";
 import type { KBArticle, Ticket, Notification } from "@/types";
-import { TICKET_STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/constants";
 import {
   Search, Sparkles, BookOpen, Ticket as TicketIcon, Plus,
   ArrowRight, ChevronRight, Bell, TrendingUp, Clock,
-  MessageSquare, BarChart3, ArrowUpRight,
+  BarChart3, ArrowUpRight,
 } from "lucide-react";
 import { cn, timeAgo, truncate } from "@/lib/utils";
-
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
+import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
+
+import { Badge } from "@/components/ui/badge";
+
+function SectionHeader({ title, subtitle, href, linkLabel }: {
+  title: string; subtitle?: string; href?: string; linkLabel?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <div>
+        <h2 className="text-[13px] font-semibold text-white">{title}</h2>
+        {subtitle && <p className="text-[11px] text-white/35 mt-0.5">{subtitle}</p>}
+      </div>
+      {href && linkLabel && (
+        <Link href={href} className="flex items-center gap-1 text-[11px] text-white/35 hover:text-white/60 transition-colors">
+          {linkLabel} <ChevronRight size={11} />
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -28,362 +41,287 @@ export default function DashboardPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewTicket, setShowNewTicket] = useState(false);
 
   const isAdmin = user?.role === "admin";
-  const isAgent = user?.role === "agent" || isAdmin;
+  const isAgent = isAdmin || user?.role === "agent";
 
   useEffect(() => {
-    const fetchData = async () => {
+    (async () => {
       try {
-        const results = await Promise.allSettled([
+        const [a, t, n] = await Promise.allSettled([
           kbAPI.getArticles({ limit: 4 }),
           ticketsAPI.getAll({ limit: 5 }),
           notificationsAPI.getAll(true),
         ]);
-        if (results[0].status === "fulfilled") setArticles(results[0].value);
-        if (results[1].status === "fulfilled") setTickets(results[1].value);
-        if (results[2].status === "fulfilled") setNotifications(results[2].value);
-      } catch {
-        // Silent fail — demo mode
-      } finally {
+        if (a.status === "fulfilled") setArticles(a.value);
+        if (t.status === "fulfilled") setTickets(t.value);
+        if (n.status === "fulfilled") setNotifications(n.value);
+      } catch { /* empty */ } finally {
         setLoading(false);
       }
-    };
-    fetchData();
+    })();
   }, []);
-
-  const quickActions = [
-    {
-      title: "Chat with AI",
-      desc: "Get instant answers from our knowledge base",
-      icon: Sparkles,
-      href: "/dashboard/ai-chat",
-      gradient: "from-violet-500/20 to-purple-500/20",
-      iconColor: "text-violet-400",
-    },
-    {
-      title: "Knowledge Base",
-      desc: "Browse articles, guides & documentation",
-      icon: BookOpen,
-      href: "/dashboard/kb",
-      gradient: "from-blue-500/20 to-cyan-500/20",
-      iconColor: "text-blue-400",
-    },
-    {
-      title: "Create Ticket",
-      desc: "Submit a new support request",
-      icon: TicketIcon,
-      href: "/dashboard/tickets/new",
-      gradient: "from-emerald-500/20 to-teal-500/20",
-      iconColor: "text-emerald-400",
-    },
-  ];
 
   const stats = isAgent
     ? [
-        { label: "Open Tickets", value: tickets.filter((t) => t.status === "open").length, icon: TicketIcon, color: "text-violet-400", bg: "bg-violet-500/10" },
-        { label: "In Progress", value: tickets.filter((t) => t.status === "in_progress").length, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
-        { label: "Resolved", value: tickets.filter((t) => t.status === "resolved").length, icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-        { label: "Total", value: tickets.length, icon: BarChart3, color: "text-blue-400", bg: "bg-blue-500/10" },
+        { label: "Open",        value: tickets.filter((t) => t.status === "open").length,        icon: TicketIcon, color: "text-[var(--primary)]", bg: "bg-[var(--primary)]/10" },
+        { label: "In Progress", value: tickets.filter((t) => t.status === "in_progress").length, icon: Clock,      color: "text-[var(--warning)]",  bg: "bg-[var(--warning)]/10" },
+        { label: "Resolved",    value: tickets.filter((t) => t.status === "resolved").length,    icon: TrendingUp, color: "text-[var(--success)]", bg: "bg-[var(--success)]/10" },
+        { label: "Total",       value: tickets.length,                                           icon: BarChart3,  color: "text-[var(--primary-light)]", bg: "bg-[var(--primary-light)]/10" },
       ]
     : [
-        { label: "My Tickets", value: tickets.length, icon: TicketIcon, color: "text-violet-400", bg: "bg-violet-500/10" },
-        { label: "Open", value: tickets.filter((t) => t.status === "open").length, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
-        { label: "Resolved", value: tickets.filter((t) => t.status === "resolved").length, icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+        { label: "My Tickets", value: tickets.length,                                           icon: TicketIcon, color: "text-white/70",    bg: "bg-white/5" },
+        { label: "Open",       value: tickets.filter((t) => t.status === "open").length,        icon: Clock,      color: "text-[var(--warning)]",  bg: "bg-[var(--warning)]/10" },
+        { label: "Resolved",   value: tickets.filter((t) => t.status === "resolved").length,    icon: TrendingUp, color: "text-[var(--success)]", bg: "bg-[var(--success)]/10" },
       ];
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
+  const quickActions = [
+    { title: "Chat with AI",    desc: "Instant answers from the knowledge base", icon: Sparkles,    href: "/dashboard/ai-chat" },
+    { title: "Knowledge Base",  desc: "Browse guides and documentation",          icon: BookOpen,    href: "/dashboard/kb" },
+    { title: "Create Ticket",   desc: "Submit a new support request",             icon: TicketIcon,  href: null, onClick: () => setShowNewTicket(true) },
+  ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* ── Hero Section ── */}
-      <section className="relative overflow-hidden rounded-2xl p-8 sm:p-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/20 via-[var(--surface-container)]/80 to-purple-900/15 rounded-2xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(124,92,250,0.15),transparent_60%)]" />
-        <div className="absolute top-0 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-[rgba(192,193,255,0.3)] to-transparent" />
+    <div className="space-y-5 max-w-5xl mx-auto">
 
-        <div className="relative z-10 max-w-2xl">
-          <p className="text-sm font-medium text-[var(--primary)] mb-2">{getGreeting()}</p>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-            Welcome back, {user?.name?.split(" ")[0] || "User"}
+      {/* ── HERO ───────────────────────────────────────────────── */}
+      <section className="relative rounded-2xl p-4 sm:p-6 overflow-hidden border border-[var(--primary)]/15"
+        style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb),0.10) 0%, rgba(var(--primary-rgb),0.04) 60%, transparent 100%)' }}
+      >
+        <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-60 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(var(--primary-rgb),0.15) 0%, transparent 70%)', transform: 'translate(25%, -25%)' }}
+        />
+
+        <div className="relative z-10">
+          <Badge variant="primary" dot className="mb-4">AI-Powered Support</Badge>
+
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1.5 leading-tight">
+            How can we help you <span className="text-[var(--primary)]">today?</span>
           </h1>
-          <p className="text-[var(--on-surface-variant)] text-base mb-6 leading-relaxed">
-            Search our knowledge base, chat with AI, or create a support ticket.
+          <p className="text-[13px] text-white/45 mb-5">
+            Search the knowledge base, chat with AI, or open a ticket.
           </p>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (searchQuery.trim())
-                window.location.href = `/dashboard/kb?search=${encodeURIComponent(searchQuery)}`;
+              if (searchQuery.trim()) window.location.href = `/dashboard/kb?search=${encodeURIComponent(searchQuery)}`;
             }}
-            className="relative max-w-lg"
+            className="flex items-center gap-2 max-w-sm"
           >
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]/50" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="How can we help you today?"
-              className="w-full py-3 pl-11 pr-4 rounded-xl bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] text-[var(--on-surface)] placeholder-[var(--on-surface-variant)]/50 outline-none focus:bg-[rgba(255,255,255,0.1)] focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/20 transition-all text-sm"
-            />
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for answers..."
+                className="w-full h-10 pl-9 pr-3 rounded-lg text-[13px] outline-none text-white placeholder-white/30 border border-white/10 bg-white/5 focus:border-[var(--primary)]/40 focus:ring-2 focus:ring-[var(--primary)]/10 transition-all"
+              />
+            </div>
+            <button type="submit" className="btn-primary h-10 px-5 rounded-lg text-[13px]">
+              Search
+            </button>
           </form>
         </div>
       </section>
 
-      {/* ── Quick Actions ── */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {quickActions.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <Card className="group h-full hover:border-[var(--primary)]/30 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--primary)]/5 cursor-pointer">
-              <CardContent className="p-6">
-                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br", item.gradient)}>
-                  <item.icon size={22} className={item.iconColor} />
-                </div>
-                <h3 className="text-base font-semibold mb-1">{item.title}</h3>
-                <p className="text-sm text-[var(--on-surface-variant)] leading-relaxed">{item.desc}</p>
-                <div className="flex items-center gap-1.5 mt-4 text-sm font-medium text-[var(--primary)] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-0 group-hover:translate-x-1">
-                  Get started <ArrowRight size={14} />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </section>
-
-      {/* ── Stats ── */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
-          <Card key={i}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", stat.bg)}>
-                  <stat.icon size={18} className={stat.color} />
-                </div>
-                {loading && <Skeleton className="h-8 w-10" />}
-              </div>
-              <p className="text-xs font-medium text-[var(--on-surface-variant)] uppercase tracking-wider mb-1">{stat.label}</p>
-              {loading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <p className="text-2xl font-bold tabular-nums">{stat.value}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-
-      {/* ── Recent Tickets ── */}
+      {/* ── QUICK ACTIONS ──────────────────────────────────────── */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Recent Tickets</h2>
-            <p className="text-sm text-[var(--on-surface-variant)]">Your latest support requests</p>
-          </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard/tickets" className="flex items-center gap-1.5">
-              View all <ChevronRight size={14} />
-            </Link>
-          </Button>
+        <SectionHeader title="Quick Actions" subtitle="Jump into something" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {quickActions.map((item, i) => {
+            const inner = (
+              <div className="glass-card p-4 h-full transition-all duration-200 hover:border-[var(--primary)]/20 hover:-translate-y-0.5 group">
+                <div className="w-9 h-9 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center mb-3">
+                  <item.icon size={16} style={{ color: 'var(--primary)' }} />
+                </div>
+                <h3 className="text-[13px] font-semibold text-white mb-0.5">{item.title}</h3>
+                <p className="text-[11px] text-white/40 leading-snug">{item.desc}</p>
+                <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-[var(--primary)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
+                  Open <ArrowRight size={11} />
+                </div>
+              </div>
+            );
+
+            return item.href ? (
+              <Link key={item.href} href={item.href} className="block">{inner}</Link>
+            ) : (
+              <button key={i} onClick={item.onClick} className="text-left w-full">{inner}</button>
+            );
+          })}
         </div>
+      </section>
+
+      {/* ── STATS ──────────────────────────────────────────────── */}
+      <section>
+        <SectionHeader title="Overview" subtitle="Your ticket activity at a glance" />
+        <div className={cn("grid gap-2.5", isAgent ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3")}>
+          {stats.map((stat, i) => (
+            <div key={i} className="glass-card p-4">
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", stat.bg)}>
+                <stat.icon size={15} className={stat.color} />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35 mb-1.5">{stat.label}</p>
+              {loading ? (
+                <Skeleton className="h-7 w-10" />
+              ) : (
+                <p className="text-2xl font-bold text-white tabular-nums leading-none">{stat.value}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── RECENT TICKETS ─────────────────────────────────────── */}
+      <section>
+        <SectionHeader title="Recent Tickets" subtitle="Latest support requests" href="/dashboard/tickets" linkLabel="View all" />
 
         {loading ? (
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-5 flex-1" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                  <Skeleton className="h-5 w-24" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <div className="glass-card p-4 space-y-3">
+            {[1, 2, 3].map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 flex-1" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            ))}
+          </div>
         ) : tickets.length > 0 ? (
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[rgba(255,255,255,0.06)]">
-                    <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">ID</th>
-                    <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Subject</th>
-                    <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Status</th>
-                    <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Priority</th>
-                    <th className="text-left py-3 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tickets.map((ticket) => {
-                    const statusVariant = ticket.status === "resolved" ? "success" : ticket.status === "open" ? "default" : "warning";
-                    const prioVariant = ticket.priority === "high" ? "danger" : ticket.priority === "low" ? "success" : "warning";
-                    return (
-                      <tr
-                        key={ticket.id}
-                        className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.03)] transition-colors cursor-pointer group"
-                        onClick={() => (window.location.href = `/dashboard/tickets/${ticket.id}`)}
-                      >
-                        <td className="py-3.5 px-5 font-mono text-xs text-[var(--primary)]">
-                          #{ticket.id.slice(0, 8)}
-                        </td>
-                        <td className="py-3.5 px-5 font-medium group-hover:text-[var(--primary)] transition-colors">
-                          {truncate(ticket.subject, 45)}
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <Badge variant={statusVariant}>
-                            {TICKET_STATUS_CONFIG[ticket.status]?.label}
-                          </Badge>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <Badge variant={prioVariant}>
-                            {PRIORITY_CONFIG[ticket.priority]?.label}
-                          </Badge>
-                        </td>
-                        <td className="py-3.5 px-5 text-[var(--on-surface-variant)] text-xs">
-                          {timeAgo(ticket.updated_at)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <div className="glass-card overflow-hidden">
+            {tickets.map((ticket, idx) => (
+              <div
+                key={ticket.id}
+                onClick={() => window.location.href = `/dashboard/tickets/${ticket.id}`}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-white/5",
+                  idx < tickets.length - 1 && "border-b border-white/5"
+                )}
+              >
+                <span className="font-mono text-[11px] text-[var(--primary)] shrink-0">
+                  #{ticket.id.slice(0, 8)}
+                </span>
+                <span className="flex-1 text-[12px] text-white/65 truncate">{truncate(ticket.subject, 40)}</span>
+                <Badge status={ticket.status} />
+                <Badge priority={ticket.priority} />
+                <span className="text-[11px] text-white/25 shrink-0 hidden sm:block">{timeAgo(ticket.updated_at)}</span>
+              </div>
+            ))}
+          </div>
         ) : (
-          <Card>
-            <EmptyState
-              icon={TicketIcon}
-              title="No tickets yet"
-              description="You haven't created any support tickets. Get started by creating your first one."
-            >
-              <Button asChild>
-                <Link href="/dashboard/tickets/new">
-                  <Plus size={16} /> Create your first ticket
-                </Link>
-              </Button>
-            </EmptyState>
-          </Card>
+          <div className="glass-card p-8 flex flex-col items-center text-center">
+            <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center mb-3">
+              <TicketIcon size={18} className="text-[var(--primary)]" />
+            </div>
+            <p className="text-[13px] font-semibold text-white mb-1">No tickets yet</p>
+            <p className="text-[12px] text-white/40 mb-4">Submit your first request to get started.</p>
+            <button onClick={() => setShowNewTicket(true)} className="btn-primary h-9 px-4 rounded-lg text-[12px]">
+              <Plus size={14} /> Create ticket
+            </button>
+          </div>
         )}
       </section>
 
-      {/* ── Bottom Grid: Notifications + KB Articles ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Notifications */}
+      {/* ── NOTIFICATIONS + ARTICLES ───────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-2">
         {isAgent && (
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Notifications</h2>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard/notifications" className="flex items-center gap-1.5">
-                  View all <ChevronRight size={14} />
-                </Link>
-              </Button>
-            </div>
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex gap-3 p-3">
-                      <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+            <SectionHeader title="Notifications" href="/dashboard/notifications" linkLabel="View all" />
+            <div className="glass-card">
+              {loading ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                      <Skeleton className="w-7 h-7 rounded-full shrink-0" />
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-2.5 w-1/2" />
                       </div>
                     </div>
-                  ))
-                ) : notifications.length > 0 ? (
-                  notifications.slice(0, 4).map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={cn(
-                        "flex items-start gap-3 p-3 rounded-lg transition-colors",
-                        notif.is_read
-                          ? "hover:bg-[rgba(255,255,255,0.03)]"
-                          : "bg-[var(--primary)]/5 border border-[var(--primary)]/15"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                        notif.is_read ? "bg-[rgba(255,255,255,0.06)]" : "bg-[var(--primary)]/15"
-                      )}>
-                        <Bell size={14} className={notif.is_read ? "text-[var(--on-surface-variant)]" : "text-[var(--primary)]"} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-snug">{notif.title}</p>
-                        <p className="text-xs text-[var(--on-surface-variant)] mt-0.5 line-clamp-1">
-                          {truncate(notif.message, 60)}
-                        </p>
-                      </div>
+                  ))}
+                </div>
+              ) : notifications.length > 0 ? (
+                notifications.slice(0, 4).map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={cn(
+                      "flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0",
+                      !notif.is_read && "bg-[var(--primary)]/5"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                      notif.is_read ? "bg-white/5" : "bg-[var(--primary)]/10"
+                    )}>
+                      <Bell size={12} className={notif.is_read ? "text-white/25" : "text-[var(--primary)]"} />
                     </div>
-                  ))
-                ) : (
-                  <div className="py-8 text-center text-sm text-[var(--on-surface-variant)]">
-                    No new notifications
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-medium text-white leading-snug">{notif.title}</p>
+                      <p className="text-[11px] text-white/35 mt-0.5 truncate">{truncate(notif.message, 60)}</p>
+                    </div>
+                    {!notif.is_read && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] mt-2 shrink-0" />
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                ))
+              ) : (
+                <div className="py-8 text-center text-[12px] text-white/25">No new notifications</div>
+              )}
+            </div>
           </section>
         )}
 
-        {/* KB Articles */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Popular Articles</h2>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/kb" className="flex items-center gap-1.5">
-                Browse all <ChevronRight size={14} />
-              </Link>
-            </Button>
-          </div>
-          <Card>
-            <CardContent className="p-4 space-y-1">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex gap-3 p-3">
-                    <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+        <section className={!isAgent ? "lg:col-span-2" : ""}>
+          <SectionHeader title="Popular Articles" href="/dashboard/kb" linkLabel="Browse all" />
+          <div className="glass-card">
+            {loading ? (
+              <div className="p-4 space-y-3">
+                {[1, 2, 3, 4].map((_, i) => (
+                  <div key={i} className="flex gap-3">
+                    <Skeleton className="w-7 h-7 rounded-lg shrink-0" />
                     <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-3 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-2.5 w-1/3" />
                     </div>
                   </div>
-                ))
-              ) : articles.length > 0 ? (
-                articles.map((article) => (
-                  <Link
-                    key={article.id}
-                    href={`/dashboard/kb/${article.id}`}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors group"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <BookOpen size={16} className="text-blue-400" />
+                ))}
+              </div>
+            ) : articles.length > 0 ? (
+              articles.map((article, idx) => (
+                <Link
+                  key={article.id}
+                  href={`/dashboard/kb/${article.id}`}
+                  className={cn(
+                    "flex items-start gap-3 px-4 py-3 group transition-colors hover:bg-white/5",
+                    idx < articles.length - 1 && "border-b border-white/5"
+                  )}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <BookOpen size={12} className="text-[var(--primary)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium text-white/65 group-hover:text-white transition-colors line-clamp-1">
+                      {article.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-[10px] text-white/30">
+                      <span>{article.view_count} views</span>
+                      <span>·</span>
+                      <span>{timeAgo(article.updated_at)}</span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium leading-snug group-hover:text-[var(--primary)] transition-colors line-clamp-1">
-                        {article.title}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-[var(--on-surface-variant)]">
-                        <span>{article.view_count} views</span>
-                        <span>{timeAgo(article.updated_at)}</span>
-                      </div>
-                    </div>
-                    <ArrowUpRight size={14} className="text-[var(--on-surface-variant)] opacity-0 group-hover:opacity-100 transition-opacity mt-1 shrink-0" />
-                  </Link>
-                ))
-              ) : (
-                <div className="py-8 text-center text-sm text-[var(--on-surface-variant)]">
-                  No articles published yet
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                  <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-60 transition-opacity mt-0.5 shrink-0 text-white/50" />
+                </Link>
+              ))
+            ) : (
+              <div className="py-8 text-center text-[12px] text-white/25">No articles published yet</div>
+            )}
+          </div>
         </section>
       </div>
+
+      <CreateTicketModal open={showNewTicket} onClose={() => setShowNewTicket(false)} />
     </div>
   );
 }

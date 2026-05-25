@@ -70,6 +70,13 @@ export interface KBArticleCreate {
 }
 
 // --- Ticket ---
+export interface UserBrief {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
 export interface Ticket {
   id: string;
   subject: string;
@@ -82,6 +89,8 @@ export interface Ticket {
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;
+  created_by?: UserBrief | null;
+  assigned_to?: UserBrief | null;
 }
 
 export interface TicketCreate {
@@ -98,6 +107,10 @@ export interface TicketUpdate {
   category_id?: string;
 }
 
+export interface TicketAssign {
+  assigned_to_id: string;
+}
+
 export interface TicketMessage {
   id: string;
   ticket_id: string;
@@ -106,6 +119,7 @@ export interface TicketMessage {
   is_internal: boolean;
   is_ai_draft: boolean;
   created_at: string;
+  sender_name?: string | null;
 }
 
 // --- AI Chat ---
@@ -161,6 +175,30 @@ export interface AnalyticsOverview {
   tickets_by_status: Record<string, number>;
   tickets_by_category: Record<string, number>;
   ai_feedback_summary: { helpful: number; unhelpful: number };
+}
+
+// --- Documents (RAG Uploads) ---
+export type DocumentStatus = "processing" | "ready" | "failed";
+
+export interface UploadedDocument {
+  id: string;
+  title: string;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  status: DocumentStatus;
+  error_message?: string | null;
+  chunk_count: number;
+  uploaded_by_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentListResponse {
+  documents: UploadedDocument[];
+  total: number;
+  limit: number;
+  max_documents: number;
 }
 
 // --- AI Feedback ---

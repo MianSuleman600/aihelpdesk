@@ -3,11 +3,12 @@
    ============================================================ */
 
 import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { formatDistanceToNow, format } from "date-fns";
 
 /** Merge tailwind class names safely */
 export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs);
+  return twMerge(clsx(inputs));
 }
 
 /** Format ISO date to relative time (e.g. "2 hours ago") */
@@ -47,11 +48,6 @@ export function getInitials(name: string): string {
     .join("")
     .toUpperCase()
     .slice(0, 2);
-}
-
-/** Capitalize first letter */
-export function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, " ");
 }
 
 /** Strip HTML tags for plain text preview */

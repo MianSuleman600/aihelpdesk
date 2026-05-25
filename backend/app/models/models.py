@@ -154,6 +154,14 @@ class Ticket(Base):
     messages = relationship("TicketMessage", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin", order_by="TicketMessage.created_at")
     attachments = relationship("TicketAttachment", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin")
 
+    @property
+    def created_by(self):
+        return self.created_by_user
+
+    @property
+    def assigned_to(self):
+        return self.assigned_to_user
+
 
 class TicketMessage(Base):
     __tablename__ = "ticket_messages"
@@ -200,6 +208,36 @@ class AIFeedback(Base):
 
     # Relationships
     user = relationship("User", back_populates="feedbacks")
+
+
+class UploadedDocumentStatus(str, enum.Enum):
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class UploadedDocument(Base):
+    """
+    Tracks uploaded documents for RAG indexing.
+    Admin/agents upload files → they get processed, chunked, indexed into Pinecone.
+    """
+    __tablename__ = "uploaded_documents"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String(300), nullable=False)
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_type = Column(String(50), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    status = Column(SQLEnum(UploadedDocumentStatus), default=UploadedDocumentStatus.PROCESSING, nullable=False)
+    error_message = Column(Text, nullable=True)
+    chunk_count = Column(Integer, default=0)
+    uploaded_by_id = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    uploaded_by = relationship("User", lazy="selectin")
 
 
 class Notification(Base):

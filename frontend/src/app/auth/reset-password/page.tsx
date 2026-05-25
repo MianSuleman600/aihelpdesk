@@ -44,7 +44,7 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="glass-card p-8">
+    <div className="glass-card p-10">
       {success ? (
         <div className="text-center py-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
@@ -52,10 +52,10 @@ function ResetPasswordForm() {
           </div>
           <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--on-surface)' }}>Password updated!</h2>
           <p className="text-sm mb-6" style={{ color: 'var(--on-surface-variant)' }}>Redirecting to login…</p>
-          <Link href="/auth/login" className="btn-primary w-full justify-center py-3">Go to Login</Link>
+          <Link href="/auth/login" className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white text-center block shadow-lg" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>Go to Login</Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
             <div className="alert alert-error">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
@@ -78,7 +78,7 @@ function ResetPasswordForm() {
               <button type="button" className="pw-toggle" onClick={() => setShowConfirm(!showConfirm)}>{showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}</button>
             </div>
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+          <button type="submit" disabled={loading} className="w-full justify-center py-3 rounded-lg text-sm font-bold text-white transition-all shadow-lg hover:-translate-y-0.5 flex items-center gap-2" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? 'Updating...' : 'Update Password'}
           </button>
@@ -93,7 +93,7 @@ function ResetPasswordForm() {
 
 function Loading() {
   return (
-    <div className="glass-card p-8 flex items-center justify-center">
+    <div className="glass-card p-10 flex items-center justify-center">
       <Loader2 size={24} className="animate-spin" style={{ color: 'var(--primary)' }} />
     </div>
   );
@@ -101,17 +101,17 @@ function Loading() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--surface)' }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--surface)' }}>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--indigo)', filter: 'blur(120px)' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--violet)', filter: 'blur(120px)' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary)', filter: 'blur(120px)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full opacity-10" style={{ background: 'var(--primary-hover)', filter: 'blur(120px)' }} />
       </div>
       <div className="w-full max-w-md relative animate-fade-in">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{background:'linear-gradient(135deg, var(--primary), var(--primary-hover))'}}>
             <Lock size={24} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold gradient-text">Reset Password</h1>
+          <h1 className="text-2xl font-bold" style={{background:'linear-gradient(135deg, var(--primary-light), var(--primary))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>Reset Password</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>Enter your new password</p>
         </div>
         <Suspense fallback={<Loading />}>
