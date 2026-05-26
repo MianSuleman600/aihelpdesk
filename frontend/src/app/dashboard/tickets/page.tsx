@@ -15,10 +15,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 
+const PAGE_SIZE = 20;
+
 export default function TicketsListPage() {
   const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -36,12 +40,16 @@ export default function TicketsListPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const t = await ticketsAPI.getAll({
+        const data = await ticketsAPI.getAll({
           status: (statusFilter as TicketStatus) || undefined,
           assigned_to_me: assignedToMe || undefined,
           category_id: categoryFilter || undefined,
+          search: search || undefined,
+          skip: page * PAGE_SIZE,
+          limit: PAGE_SIZE,
         });
-        setTickets(t);
+        setTickets(data.items);
+        setTotal(data.total);
       } catch (e) {
         console.error(e);
       } finally {
@@ -49,15 +57,7 @@ export default function TicketsListPage() {
       }
     };
     load();
-  }, [statusFilter, assignedToMe, categoryFilter]);
-
-  const filtered = search
-    ? tickets.filter(
-      (t) =>
-        t.subject.toLowerCase().includes(search.toLowerCase()) ||
-        t.description.toLowerCase().includes(search.toLowerCase())
-    )
-    : tickets;
+  }, [statusFilter, assignedToMe, categoryFilter, search, page]);
 
   const statusFilters = ["", "open", "in_progress", "resolved", "closed"];
 
@@ -90,13 +90,13 @@ export default function TicketsListPage() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             placeholder="Search tickets…"
             className="w-full py-2.5 pl-10 pr-10 rounded-lg bg-white/5 border border-[var(--outline-variant)]/50 text-sm text-[var(--on-surface)] placeholder-[var(--on-surface-variant)]/50 outline-none focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
           {search && (
             <button
-              onClick={() => setSearch("")}
+              onClick={() => { setSearch(""); setPage(0); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] hover:text-white transition-colors"
             >
               <X size={15} />
@@ -110,7 +110,7 @@ export default function TicketsListPage() {
               key={s}
               variant={statusFilter === s ? "default" : "ghost"}
               size="sm"
-              onClick={() => setStatusFilter(s)}
+              onClick={() => { setStatusFilter(s); setPage(0); }}
               className={statusFilter === s ? "" : "text-[var(--on-surface-variant)]"}
             >
               {s ? TICKET_STATUS_CONFIG[s]?.label : "All"}
@@ -120,7 +120,7 @@ export default function TicketsListPage() {
             <Button
               variant={assignedToMe ? "default" : "ghost"}
               size="sm"
-              onClick={() => setAssignedToMe(!assignedToMe)}
+              onClick={() => { setAssignedToMe(!assignedToMe); setPage(0); }}
               className={`flex items-center gap-1.5 ${assignedToMe ? "" : "text-[var(--on-surface-variant)]"}`}
             >
               <UserCheck size={14} />
@@ -129,7 +129,7 @@ export default function TicketsListPage() {
           )}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
             className="py-1.5 px-2.5 rounded-lg bg-white/5 border border-[var(--outline-variant)]/50 text-sm text-[var(--on-surface)] outline-none focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15 transition-all cursor-pointer"
           >
             <option value="">All categories</option>
@@ -155,7 +155,7 @@ export default function TicketsListPage() {
             ))}
           </CardContent>
         </Card>
-      ) : filtered.length > 0 ? (
+      ) : tickets.length > 0 ? (
         <Card className="bg-white/5 border-white/10 backdrop-blur-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -171,7 +171,7 @@ export default function TicketsListPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((t) => {
+                {tickets.map((t) => {
                   const statusVariant =
                     t.status === "resolved" ? "success"
                     : t.status === "open" ? "default"
@@ -231,6 +231,32 @@ export default function TicketsListPage() {
                 })}
               </tbody>
             </table>
+          </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-5 py-3 border-t border-white/5">
+            <span className="text-xs text-[var(--on-surface-variant)]">
+              {total} ticket{total !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                className="text-xs text-[var(--on-surface-variant)]"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page * PAGE_SIZE + PAGE_SIZE >= total}
+                onClick={() => setPage((p) => p + 1)}
+                className="text-xs text-[var(--on-surface-variant)]"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </Card>
       ) : (

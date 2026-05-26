@@ -5,9 +5,18 @@ Includes input sanitization and length constraints.
 
 import re
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Optional, List
+from typing import Optional, List, Generic, TypeVar
 from datetime import datetime
 from app.models.models import UserRole, TicketStatus, Priority, FeedbackRating
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    skip: int = 0
+    limit: int = 20
 
 
 # ============================================================
@@ -331,6 +340,29 @@ class AIDraftReplyRequest(BaseModel):
 # ============================================================
 # AI Feedback Schemas
 # ============================================================
+
+class ChatSessionResponse(BaseModel):
+    id: str
+    title: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    content: str
+    sources: Optional[list] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 class AIFeedbackCreate(BaseModel):
     context_type: str = Field(..., pattern="^(chat|ticket)$")

@@ -116,6 +116,67 @@ def _rewrite_query(query: str, history: str = "") -> str:
     return expanded
 
 
+def _build_system_prompt(context_text: str, sources: list, conversation_history: str = "") -> str:
+    """Build an advanced system prompt with chain-of-thought reasoning."""
+
+    source_lines = []
+    for i, s in enumerate(sources, 1):
+        title = s.get("title") if isinstance(s, dict) else s.title
+        score = s.get("relevance_score") if isinstance(s, dict) else s.relevance_score
+        source_lines.append(f"[{i}] \"{title}\" (relevance: {score:.2f})")
+    source_list = "\n".join(source_lines) if source_lines else "No sources found."
+
+    has_context = bool(context_text and context_text != "No relevant context was found for this query.")
+
+    return (
+        "You are an expert HelpDesk AI support assistant. Your goal is to provide accurate, helpful, "
+        "and well-structured answers based SOLELY on the provided knowledge base context.\n\n"
+
+        "## CORE RULES\n"
+        "1. **GROUNDING**: Answer ONLY using the context below. NEVER use external knowledge or make up information.\n"
+        "2. **HONESTY**: If the context doesn't contain the answer, say: 'I couldn't find specific information about that in our knowledge base.' and suggest creating a support ticket.\n"
+        "3. **CITATIONS**: Cite sources inline using [1], [2] etc. at the end of each factual claim. Every claim must have a citation.\n"
+        "4. **CONCISENESS**: Be direct and concise. Don't repeat the question. Don't add irrelevant details.\n"
+        "5. **STRUCTURE**: When listing multiple items, use bullet points or numbered lists for clarity.\n"
+        "6. **CONVERSATION**: Use the chat history for context when following up on previous questions.\n\n"
+
+        "## REASONING (follow this chain-of-thought internally before writing)\n"
+        "1. Analyze: What is the user asking? Break down multi-part questions.\n"
+        "2. Check: Does the context contain relevant information for EACH part?\n"
+        "3. Plan: Structure the answer — direct answer first, then details, then citations.\n"
+        "4. Verify: Ensure every claim maps to a source. If unsure, don't guess.\n"
+        "5. Self-correct: If the answer would be incomplete, acknowledge the gap.\n\n"
+
+        "## OUTPUT FORMAT\n"
+        "- Start with a direct answer to the user's question.\n"
+        "- Follow with relevant details, steps, or explanations.\n"
+        "- End with a helpful follow-up question or action suggestion.\n"
+        "- Use markdown formatting: **bold** for key terms, `code` for technical commands, --- for separators.\n"
+        "- For step-by-step instructions, use numbered lists.\n"
+        "- For comparisons or options, use bullet points.\n\n"
+
+        "## HANDLING EDGE CASES\n"
+        "- **Greetings/small talk**: For greetings ('hi', 'hello', 'how are you', etc.) respond warmly and briefly, then ask how you can help with support topics. Greetings do NOT need context — keep it short.\n"
+        "- **Ambiguous query**: If the question is unclear, ask a clarifying question before guessing.\n"
+        "- **Multi-part query**: Answer each part separately with clear labels (e.g., '1. ... 2. ...').\n"
+        "- **Out of scope**: If the question is not about helpdesk/support topics, politely redirect.\n"
+        "- **Negative response**: For 'how to fix X' when no solution exists in KB, say so and offer alternatives.\n\n"
+
+        "## CONFIDENCE\n"
+        f"- Context available: {has_context}. "
+        f"{'Answer confidently with citations.' if has_context else 'Indicate uncertainty and suggest a ticket.'}\n\n"
+
+        "## CONVERSATION HISTORY (for context)\n"
+        f"{conversation_history if conversation_history else 'No prior conversation.'}\n\n"
+
+        "## KNOWLEDGE BASE CONTEXT\n"
+        f"{context_text if context_text else 'No relevant context was found for this query.'}\n\n"
+
+        "## SOURCES AVAILABLE\n"
+        f"{source_list}"
+    )
+
+
 class AIService:
     """Service layer for AI-powered operations."""
 
@@ -301,36 +362,18 @@ class AIService:
             context_text = ""
             sources = []
 
-        # --- 6. Build messages with structured prompt ---
-        source_lines = []
-        for i, s in enumerate(sources, 1):
-            source_lines.append(
-                f"[{i}] \"{s.title}\" (relevance: {s.relevance_score:.2f})"
-            )
-        source_list = "\n".join(source_lines) if source_lines else "No sources found."
-
-        system_content = (
-            "You are a HelpDesk AI support assistant. Follow these rules strictly:\n\n"
-            "## RULES\n"
-            "1. Answer ONLY using the provided context below.\n"
-            "2. If context is insufficient, say so and suggest creating a ticket.\n"
-            "3. NEVER make up information or use external knowledge.\n"
-            "4. Cite sources using [Source: Title] after each claim.\n"
-            "5. Be concise, accurate, and helpful.\n"
-            "6. If the user asks a general question, first check if the context has the answer.\n\n"
-            "## REASONING\n"
-            "- Read the context carefully.\n"
-            "- Determine if the context contains the answer.\n"
-            "- If yes: answer with citations.\n"
-            "- If no: say 'I don't have enough information' and suggest a ticket.\n\n"
-            "## CONTEXT\n"
-            f"{context_text if context_text else 'No relevant context was found for this query.'}\n\n"
-            "## SOURCES AVAILABLE\n"
-            f"{source_list}"
-        )
+        # --- 6. Build messages with advanced system prompt ---
+        # Exclude current user message from history (already appended separately)
+        prev_messages = [m for m in history_messages if m.id != user_msg.id]
+        # Rebuild history_text without the current message
+        history_text = "\n".join(
+            f"{'User' if m.role == 'user' else 'Assistant'}: {m.content[:200]}"
+            for m in prev_messages[-3:]
+        ) if prev_messages else ""
+        system_content = _build_system_prompt(context_text, sources, history_text)
 
         messages = [SystemMessage(content=system_content)]
-        for msg in history_messages:
+        for msg in prev_messages:
             if msg.role == "user":
                 messages.append(HumanMessage(content=msg.content))
             else:
@@ -344,6 +387,12 @@ class AIService:
                 messages, temperature=0.3, max_retries=3,
             )
             logger.info("Chat answered using model: %s", model_used)
+
+            if not answer or not answer.strip():
+                answer = (
+                    "I couldn't find specific information about that in our knowledge base. "
+                    "Please create a support ticket and an agent will assist you."
+                )
 
             if sources:
                 confidence = max(s.relevance_score for s in sources)
@@ -368,6 +417,8 @@ class AIService:
         )
         db.add(ai_msg)
         await db.flush()
+        # Commit immediately so the session + messages are visible to other requests
+        await db.commit()
 
         # --- 9. Build response ---
         suggest_ticket = confidence < CONFIDENCE_THRESHOLD
@@ -529,35 +580,17 @@ class AIService:
         # --- Send meta event ---
         yield f"data: {json.dumps({'type': 'meta', 'session_id': session.id, 'sources': sources, 'confidence': confidence})}\n\n"
 
-        # --- Build messages with improved prompt ---
-        source_lines = []
-        for i, s in enumerate(sources, 1):
-            source_lines.append(
-                f"[{i}] \"{s['title']}\" (relevance: {s['relevance_score']:.2f})"
-            )
-        source_list = "\n".join(source_lines) if source_lines else "No sources found."
-
-        system_content = (
-            "You are a HelpDesk AI support assistant. Follow these rules strictly:\n\n"
-            "## RULES\n"
-            "1. Answer ONLY using the provided context below.\n"
-            "2. If context is insufficient, say so and suggest creating a ticket.\n"
-            "3. NEVER make up information or use external knowledge.\n"
-            "4. Cite sources using [Source: Title] after each claim.\n"
-            "5. Be concise, accurate, and helpful.\n\n"
-            "## REASONING\n"
-            "- Read the context carefully.\n"
-            "- Determine if the context contains the answer.\n"
-            "- If yes: answer with citations.\n"
-            "- If no: say 'I don't have enough information' and suggest a ticket.\n\n"
-            "## CONTEXT\n"
-            f"{context_text if context_text else 'No relevant context was found for this query.'}\n\n"
-            "## SOURCES AVAILABLE\n"
-            f"{source_list}"
-        )
+        # --- Build messages with advanced system prompt ---
+        # Exclude current user message from history (already appended separately)
+        prev_messages = [m for m in history_messages if m.id != user_msg.id]
+        history_text = "\n".join(
+            f"{'User' if m.role == 'user' else 'Assistant'}: {m.content[:200]}"
+            for m in prev_messages[-3:]
+        ) if prev_messages else ""
+        system_content = _build_system_prompt(context_text, sources, history_text)
 
         langchain_messages = [SystemMessage(content=system_content)]
-        for msg in history_messages:
+        for msg in prev_messages:
             if msg.role == "user":
                 langchain_messages.append(HumanMessage(content=msg.content))
             else:
@@ -570,6 +603,11 @@ class AIService:
             content, model_used = await _llm_ainvoke_with_fallback(
                 langchain_messages, temperature=0.3, streaming=True, max_retries=3,
             )
+            if not content or not content.strip():
+                content = (
+                    "I couldn't find specific information about that in our knowledge base. "
+                    "Please create a support ticket and an agent will assist you."
+                )
             collected_tokens = [content]
             yield f"data: {json.dumps({'type': 'chunk', 'content': content})}\n\n"
             logger.info("Stream answered using model: %s", model_used)
@@ -592,6 +630,8 @@ class AIService:
         )
         db.add(ai_msg)
         await db.flush()
+        # Commit immediately so the session + messages are visible to other requests
+        await db.commit()
 
         # --- Done ---
         yield f"data: {json.dumps({'type': 'done', 'full_content': full_answer, 'session_id': session.id})}\n\n"

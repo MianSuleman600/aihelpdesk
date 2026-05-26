@@ -5,6 +5,7 @@ Admins/agents upload PDF/DOCX/TXT files → processed, chunked, embedded, stored
 
 import os
 import uuid
+from typing import Optional
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,25 +108,40 @@ async def upload_document(
 
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all uploaded documents (admin/agent only)."""
-    query = select(UploadedDocument).order_by(UploadedDocument.created_at.desc())
+    """List uploaded documents with search and pagination."""
+    query = select(UploadedDocument)
+    count_q = select(func.count(UploadedDocument.id))
 
-    # Non-admin users see only their own uploads
     if current_user.role not in (UserRole.ADMIN, UserRole.AGENT):
         query = query.where(UploadedDocument.uploaded_by_id == current_user.id)
+        count_q = count_q.where(UploadedDocument.uploaded_by_id == current_user.id)
 
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            UploadedDocument.title.ilike(pattern) | UploadedDocument.filename.ilike(pattern)
+        )
+        count_q = count_q.where(
+            UploadedDocument.title.ilike(pattern) | UploadedDocument.filename.ilike(pattern)
+        )
+
+    total_result = await db.execute(count_q)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(UploadedDocument.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     documents = result.scalars().all()
 
-    total_result = await db.execute(select(func.count()).select_from(UploadedDocument))
-    total = total_result.scalar()
-
     return DocumentListResponse(
         documents=documents,
-        total=total or 0,
+        total=total,
+        limit=limit,
         max_documents=settings.MAX_DOCUMENTS_PER_ADMIN,
     )
 

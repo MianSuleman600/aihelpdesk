@@ -38,8 +38,8 @@ export function NotificationDropdown() {
     if (open) {
       setLoading(true);
       notificationsAPI
-        .getAll()
-        .then(setNotifications)
+        .getAll({})
+        .then((data) => setNotifications(data.items))
         .catch((e) => console.error(e))
         .finally(() => setLoading(false));
     }

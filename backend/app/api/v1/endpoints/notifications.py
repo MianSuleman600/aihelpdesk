@@ -4,18 +4,17 @@ Notification endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from typing import List
+from sqlalchemy import select, update, func
 
 from app.db.session import get_db
 from app.models.models import Notification, User
-from app.schemas.schemas import NotificationResponse
+from app.schemas.schemas import NotificationResponse, PaginatedResponse
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[NotificationResponse])
+@router.get("/")
 async def list_notifications(
     unread_only: bool = Query(False),
     skip: int = Query(0, ge=0),
@@ -24,14 +23,20 @@ async def list_notifications(
     current_user: User = Depends(get_current_user),
 ):
     """List notifications for the current user."""
-    query = select(Notification).where(Notification.user_id == current_user.id)
+    count_q = select(func.count(Notification.id)).where(Notification.user_id == current_user.id)
+    if unread_only:
+        count_q = count_q.where(Notification.is_read == False)
+    total_result = await db.execute(count_q)
+    total = total_result.scalar() or 0
 
+    query = select(Notification).where(Notification.user_id == current_user.id)
     if unread_only:
         query = query.where(Notification.is_read == False)
-
     query = query.order_by(Notification.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    items = result.scalars().all()
+
+    return PaginatedResponse(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.patch("/{notification_id}/read")

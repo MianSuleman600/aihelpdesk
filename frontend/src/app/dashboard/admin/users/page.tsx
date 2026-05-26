@@ -4,31 +4,39 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import { adminAPI } from "@/lib/api"
-import { Shield, UserCheck, UserX, Search, RefreshCw, Mail } from "lucide-react"
+import { Shield, UserCheck, UserX, Search, RefreshCw, Mail, ChevronLeft, ChevronRight } from "lucide-react"
 import type { User } from "@/types"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
+const PER_PAGE = 10
+
 export default function AdminUsersPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(0)
   const [error, setError] = useState("")
 
   useEffect(() => {
     if (user?.role !== "admin") { router.replace("/dashboard"); return; }
-    fetchUsers()
   }, [user, router])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [search, page])
 
   const fetchUsers = async () => {
     setLoading(true)
     setError("")
     try {
-      const data = await adminAPI.listUsers(search)
-      setUsers(data)
+      const data = await adminAPI.listUsers({ search: search || undefined, skip: page * PER_PAGE, limit: PER_PAGE })
+      setUsers(data.items)
+      setTotal(data.total)
     } catch {
       setError("Failed to load users")
     } finally {
@@ -56,12 +64,14 @@ export default function AdminUsersPage() {
     user: "bg-white/5 text-[var(--on-surface-variant)]",
   }
 
+  const totalPages = Math.ceil(total / PER_PAGE)
+
   return (
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white">Manage Users</h1>
-          <p className="text-sm text-[var(--on-surface-variant)] mt-1">View and manage user accounts</p>
+          <p className="text-sm text-[var(--on-surface-variant)] mt-1">{total} user{total !== 1 ? "s" : ""}</p>
         </div>
         <button
           onClick={fetchUsers}
@@ -77,8 +87,7 @@ export default function AdminUsersPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && fetchUsers()}
+          onChange={(e) => { setSearch(e.target.value); setPage(0) }}
           placeholder="Search users..."
           className="w-full h-10 pl-9 pr-4 rounded-xl bg-[var(--surface-container-low)] border border-[var(--outline-variant)] text-sm text-[var(--on-surface)] outline-none transition-all focus:border-[var(--primary)]/50 focus:shadow-[0_0_0_3px_rgba(var(--primary-rgb),0.15)]"
         />
@@ -179,6 +188,22 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {total > PER_PAGE && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--on-surface-variant)]">
+            Showing {page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, total)} of {total}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+              <ChevronLeft size={16} /> Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              Next <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

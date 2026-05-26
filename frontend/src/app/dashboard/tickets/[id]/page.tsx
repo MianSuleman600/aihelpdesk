@@ -63,7 +63,7 @@ export default function TicketDetailPage() {
   const loadTicket = useCallback(async () => {
     try {
       const [t, m] = await Promise.all([ticketsAPI.getById(id), ticketsAPI.getMessages(id)]);
-      setTicket(t); setMessages(m);
+      setTicket(t); setMessages(m.items);
     } catch (e) { console.error(e); setError("Ticket not found."); }
     finally { setLoading(false); }
   }, [id]);

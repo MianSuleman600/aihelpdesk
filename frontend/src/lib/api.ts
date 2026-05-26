@@ -5,7 +5,7 @@ import type {
   Ticket, TicketCreate, TicketUpdate, TicketAssign, TicketMessage,
   AIChatResponse, Notification, AnalyticsOverview, AIFeedbackCreate,
   TokenResponse, UploadedDocument, DocumentListResponse,
-  UserSettings, UserSettingsUpdate,
+  UserSettings, UserSettingsUpdate, PaginatedResult,
 } from '@/types';
 
 export { tokenUtils };
@@ -68,8 +68,8 @@ export const kbAPI = {
     tag?: string;
     skip?: number;
     limit?: number;
-  }): Promise<KBArticle[]> => {
-    return apiClient.get<KBArticle[]>(ENDPOINTS.kb.list, params as Record<string, string>);
+  }): Promise<PaginatedResult<KBArticle>> => {
+    return apiClient.get<PaginatedResult<KBArticle>>(ENDPOINTS.kb.list, params as Record<string, string>);
   },
 
   getArticle: async (id: string): Promise<KBArticle> => {
@@ -94,10 +94,13 @@ export const ticketsAPI = {
     status?: string;
     assigned_to_me?: boolean;
     category_id?: string;
+    search?: string;
+    priority?: string;
+    unassigned?: boolean;
     skip?: number;
     limit?: number;
-  }): Promise<Ticket[]> => {
-    return apiClient.get<Ticket[]>(ENDPOINTS.tickets.list, params as Record<string, string>);
+  }): Promise<PaginatedResult<Ticket>> => {
+    return apiClient.get<PaginatedResult<Ticket>>(ENDPOINTS.tickets.list, params as Record<string, string>);
   },
 
   getById: async (id: string): Promise<Ticket> => {
@@ -124,8 +127,14 @@ export const ticketsAPI = {
     return apiClient.post<Ticket>(`${ENDPOINTS.tickets.detail(id)}/assign`, payload);
   },
 
-  getMessages: async (ticketId: string): Promise<TicketMessage[]> => {
-    return apiClient.get<TicketMessage[]>(ENDPOINTS.tickets.messages(ticketId));
+  getMessages: async (ticketId: string, params?: {
+    skip?: number;
+    limit?: number;
+  }): Promise<PaginatedResult<TicketMessage>> => {
+    return apiClient.get<PaginatedResult<TicketMessage>>(
+      ENDPOINTS.tickets.messages(ticketId),
+      params as Record<string, string>,
+    );
   },
 
   addMessage: async (
@@ -155,8 +164,16 @@ export const aiAPI = {
 };
 
 export const notificationsAPI = {
-  getAll: async (unreadOnly = false): Promise<Notification[]> => {
-    return apiClient.get<Notification[]>(ENDPOINTS.notifications.list, { unread_only: String(unreadOnly) });
+  getAll: async (params?: {
+    unread_only?: boolean;
+    skip?: number;
+    limit?: number;
+  }): Promise<PaginatedResult<Notification>> => {
+    const queryParams: Record<string, string> = {};
+    if (params?.unread_only) queryParams.unread_only = 'true';
+    if (params?.skip !== undefined) queryParams.skip = String(params.skip);
+    if (params?.limit !== undefined) queryParams.limit = String(params.limit);
+    return apiClient.get<PaginatedResult<Notification>>(ENDPOINTS.notifications.list, queryParams);
   },
 
   markRead: async (id: string): Promise<void> => {
@@ -169,8 +186,12 @@ export const notificationsAPI = {
 };
 
 export const documentsAPI = {
-  list: async (): Promise<DocumentListResponse> => {
-    return apiClient.get<DocumentListResponse>(ENDPOINTS.documents.list);
+  list: async (params?: {
+    search?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<DocumentListResponse> => {
+    return apiClient.get<DocumentListResponse>(ENDPOINTS.documents.list, params as Record<string, string>);
   },
 
   get: async (id: string): Promise<UploadedDocument> => {
@@ -198,8 +219,12 @@ export const documentsAPI = {
 };
 
 export const adminAPI = {
-  listUsers: async (search?: string) => {
-    return apiClient.get<User[]>(ENDPOINTS.admin.users, search ? { search } as Record<string, string> : undefined);
+  listUsers: async (params?: {
+    search?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<PaginatedResult<User>> => {
+    return apiClient.get<PaginatedResult<User>>(ENDPOINTS.admin.users, params as Record<string, string>);
   },
   toggleUserStatus: async (userId: string) => {
     return apiClient.patch(ENDPOINTS.admin.userToggleStatus(userId), {});

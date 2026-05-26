@@ -15,6 +15,7 @@ from app.schemas.schemas import (
     AIChatRequest, AIChatResponse, AIChatSource,
     AISummarizeRequest, AIDraftReplyRequest,
     AIFeedbackCreate, AIFeedbackResponse,
+    ChatSessionResponse, ChatMessageResponse,
 )
 from app.api.deps import get_current_user, require_agent_or_admin
 from app.services.ai_service import AIService
@@ -106,6 +107,69 @@ async def draft_reply(
         db=db,
     )
     return result
+
+
+@router.get("/sessions", response_model=list[ChatSessionResponse])
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List current user's chat sessions, newest first."""
+    stmt = (
+        select(ChatSession)
+        .where(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.updated_at.desc())
+    )
+    result = await db.execute(stmt)
+    sessions = result.scalars().all()
+    return [
+        ChatSessionResponse(
+            id=s.id,
+            title=s.title,
+            created_at=s.created_at,
+            updated_at=s.updated_at,
+            message_count=len(s.messages),
+        )
+        for s in sessions
+    ]
+
+
+@router.get("/sessions/{session_id}", response_model=list[ChatMessageResponse])
+async def get_session_messages(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all messages for a session (owned by current user)."""
+    stmt = select(ChatSession).where(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id,
+    )
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    # messages are already ordered by created_at via relationship
+    return session.messages
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a session and its messages (owned by current user)."""
+    stmt = select(ChatSession).where(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id,
+    )
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await db.delete(session)
+    await db.commit()
 
 
 @router.post("/feedback", response_model=AIFeedbackResponse, status_code=201)

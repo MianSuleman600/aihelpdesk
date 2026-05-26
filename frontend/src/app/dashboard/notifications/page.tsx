@@ -3,22 +3,38 @@ import { useState, useEffect } from "react";
 import { notificationsAPI } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 import type { Notification } from "@/types";
-import { Bell, Check, CheckCheck, Loader2, ExternalLink } from "lucide-react";
+import { Bell, Check, CheckCheck, Loader2, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+
+const PER_PAGE = 10;
 
 export default function NotificationsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all"|"unread">("all");
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      try { const n = await notificationsAPI.getAll(filter==="unread"); setNotifications(n); }
-      catch (e) { console.error(e); } finally { setLoading(false); }
+      try {
+        const data = await notificationsAPI.getAll({
+          unread_only: filter === "unread",
+          skip: page * PER_PAGE,
+          limit: PER_PAGE,
+        });
+        setNotifications(data.items);
+        setTotal(data.total);
+      } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
+  }, [filter, page]);
+
+  useEffect(() => {
+    setPage(0);
   }, [filter]);
 
   const markRead = async (id: string) => {
@@ -30,11 +46,12 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifications.filter(n=>!n.is_read).length;
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Notifications</h1><p className="text-sm text-[var(--on-surface-variant)] mt-1">{unreadCount} unread notification{unreadCount!==1?"s":""}</p></div>
+        <div><h1 className="text-2xl font-bold">Notifications</h1><p className="text-sm text-[var(--on-surface-variant)] mt-1">{total} notification{total!==1?"s":""}</p></div>
         {unreadCount>0&&<button onClick={markAllRead} className="btn-secondary text-sm"><CheckCheck size={16}/>Mark all read</button>}
       </div>
       <div className="flex gap-2">
@@ -45,21 +62,36 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="space-y-3">{Array.from({length:5}).map((_,i)=><div key={i} className="skeleton h-16 w-full"/>)}</div>
       ) : notifications.length > 0 ? (
-        <div className="glass-card overflow-hidden divide-y divide-white/5">
-          {notifications.map(n=>(
-            <div key={n.id} className={`px-5 py-4 flex items-start gap-4 hover:bg-white/3 transition-colors cursor-pointer ${!n.is_read?"bg-[var(--primary)]/5":""}`}
-              onClick={()=>{if(!n.is_read)markRead(n.id); if(n.link)router.push(n.link);}}>
-              <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.is_read?"bg-transparent":"bg-[var(--primary)]"}`}/>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{n.title}</p>
-                <p className="text-sm text-[var(--on-surface-variant)] mt-0.5">{n.message}</p>
-                <p className="text-xs text-[var(--on-surface-variant)]/60 mt-1">{timeAgo(n.created_at)}</p>
+        <>
+          <div className="glass-card overflow-hidden divide-y divide-white/5">
+            {notifications.map(n=>(
+              <div key={n.id} className={`px-5 py-4 flex items-start gap-4 hover:bg-white/3 transition-colors cursor-pointer ${!n.is_read?"bg-[var(--primary)]/5":""}`}
+                onClick={()=>{if(!n.is_read)markRead(n.id); if(n.link)router.push(n.link);}}>
+                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.is_read?"bg-transparent":"bg-[var(--primary)]"}`}/>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{n.title}</p>
+                  <p className="text-sm text-[var(--on-surface-variant)] mt-0.5">{n.message}</p>
+                  <p className="text-xs text-[var(--on-surface-variant)]/60 mt-1">{timeAgo(n.created_at)}</p>
+                </div>
+                {n.link&&<ExternalLink size={14} className="text-[var(--on-surface-variant)] mt-1 shrink-0"/>}
+                {!n.is_read&&<button onClick={e=>{e.stopPropagation();markRead(n.id);}} className="p-1.5 rounded hover:bg-white/5 text-[var(--on-surface-variant)]" title="Mark as read"><Check size={14}/></button>}
               </div>
-              {n.link&&<ExternalLink size={14} className="text-[var(--on-surface-variant)] mt-1 shrink-0"/>}
-              {!n.is_read&&<button onClick={e=>{e.stopPropagation();markRead(n.id);}} className="p-1.5 rounded hover:bg-white/5 text-[var(--on-surface-variant)]" title="Mark as read"><Check size={14}/></button>}
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--on-surface-variant)]">
+              Showing {page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, total)} of {total}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft size={16} /> Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                Next <ChevronRight size={16} />
+              </Button>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       ) : (
         <div className="glass-card p-16 text-center">
           <Bell size={48} className="mx-auto mb-4 text-[var(--on-surface-variant)]"/>

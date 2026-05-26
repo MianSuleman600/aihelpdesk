@@ -7,7 +7,7 @@ import { kbAPI } from "@/lib/api"
 import { timeAgo, truncate } from "@/lib/utils"
 import type { KBArticle, Category } from "@/types"
 import {
-  Plus, Edit, Trash2, Eye, EyeOff, Loader2, BookOpen, Search, X
+  Plus, Edit, Trash2, Eye, EyeOff, Loader2, BookOpen, Search, X, ChevronLeft, ChevronRight
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,12 +16,16 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 
+const PER_PAGE = 10
+
 export default function AdminKBPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [articles, setArticles] = useState<KBArticle[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(0)
   const [showEditor, setShowEditor] = useState(false)
   const [editingArticle, setEditingArticle] = useState<KBArticle|null>(null)
   const [form, setForm] = useState({title:"",body:"",tags:"",is_published:false,category_id:""})
@@ -31,13 +35,19 @@ export default function AdminKBPage() {
   useEffect(() => {
     if (user?.role!=="admin"&&user?.role!=="agent") { router.replace("/dashboard"); return; }
     kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
-    loadArticles()
   }, [user, router])
 
-  const loadArticles = async () => {
-    setLoading(true)
-    try { setArticles(await kbAPI.getArticles({limit:100})) } catch (e) { console.error(e); } finally { setLoading(false) }
-  }
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const data = await kbAPI.getArticles({ search: search || undefined, skip: page * PER_PAGE, limit: PER_PAGE })
+        setArticles(data.items)
+        setTotal(data.total)
+      } catch (e) { console.error(e) } finally { setLoading(false) }
+    }
+    load()
+  }, [search, page])
 
   const handleSave = async () => {
     if (!form.title||!form.body) return
@@ -47,27 +57,29 @@ export default function AdminKBPage() {
       if (editingArticle) { await kbAPI.updateArticle(editingArticle.id, payload) }
       else { await kbAPI.createArticle(payload) }
       setShowEditor(false); setEditingArticle(null); setForm({title:"",body:"",tags:"",is_published:false,category_id:""})
-      await loadArticles()
+      const data = await kbAPI.getArticles({ search: search || undefined, skip: page * PER_PAGE, limit: PER_PAGE })
+      setArticles(data.items)
+      setTotal(data.total)
     } catch (e) { console.error(e); } finally { setSaving(false) }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this article?")) return
-    try { await kbAPI.deleteArticle(id); setArticles(p=>p.filter(a=>a.id!==id)) } catch (e) { console.error(e); }
+    try { await kbAPI.deleteArticle(id); setArticles(p=>p.filter(a=>a.id!==id)); setTotal(p=>p-1) } catch (e) { console.error(e); }
   }
 
   const handleEdit = (a: KBArticle) => {
     setEditingArticle(a); setForm({title:a.title,body:a.body,tags:a.tags.join(", "),is_published:a.is_published,category_id:a.category_id||""}); setShowEditor(true)
   }
 
-  const filtered = search ? articles.filter(a=>a.title.toLowerCase().includes(search.toLowerCase())) : articles
+  const totalPages = Math.ceil(total / PER_PAGE)
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white">Manage Knowledge Base</h1>
-          <p className="text-sm text-[var(--on-surface-variant)] mt-1">{articles.length} articles</p>
+          <p className="text-sm text-[var(--on-surface-variant)] mt-1">{total} articles</p>
         </div>
         <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false,category_id:""});setShowEditor(true)}}>
           <Plus size={16}/>New Article
@@ -136,12 +148,12 @@ export default function AdminKBPage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
         <Input
           value={search}
-          onChange={e=>setSearch(e.target.value)}
+          onChange={e=>{setSearch(e.target.value); setPage(0)}}
           placeholder="Search articles…"
           className="pl-9"
         />
         {search && (
-          <button onClick={()=>setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] hover:text-white transition-colors">
+          <button onClick={()=>{setSearch(""); setPage(0)}} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] hover:text-white transition-colors">
             <X size={14} />
           </button>
         )}
@@ -153,47 +165,62 @@ export default function AdminKBPage() {
             <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />
           ))}
         </div>
-      ) : filtered.length > 0 ? (
-        <Card glass className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 text-[var(--on-surface-variant)] text-xs uppercase tracking-wider">
-                  <th className="text-left py-3 px-4 md:px-5 font-semibold">Title</th>
-                  <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Category</th>
-                  <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Status</th>
-                  <th className="text-left py-3 px-4 md:px-5 font-semibold hidden md:table-cell">Views</th>
-                  <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Updated</th>
-                  <th className="text-right py-3 px-4 md:px-5 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(a=>(
-                  <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-4 md:px-5 font-medium text-white">{truncate(a.title,40)}</td>
-                    <td className="py-3 px-4 md:px-5 text-xs text-[var(--on-surface-variant)] hidden sm:table-cell">
-                      {a.category_id ? categories.find(c=>c.id===a.category_id)?.name || <span className="italic text-[var(--on-surface-variant)]/50">Unknown</span> : <span className="italic text-[var(--on-surface-variant)]/50">None</span>}
-                    </td>
-                    <td className="py-3 px-4 md:px-5 hidden sm:table-cell">
-                      {a.is_published
-                        ? <Badge variant="success"><Eye size={10}/>Published</Badge>
-                        : <Badge variant="outline"><EyeOff size={10}/>Draft</Badge>
-                      }
-                    </td>
-                    <td className="py-3 px-4 md:px-5 text-[var(--on-surface-variant)] hidden md:table-cell">{a.view_count}</td>
-                    <td className="py-3 px-4 md:px-5 text-[var(--on-surface-variant)] hidden sm:table-cell text-xs">{timeAgo(a.updated_at)}</td>
-                    <td className="py-3 px-4 md:px-5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={()=>handleEdit(a)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--primary)] transition-colors"><Edit size={14}/></button>
-                        <button onClick={()=>handleDelete(a.id)} className="p-1.5 rounded-lg hover:bg-[var(--danger)]/10 text-[var(--danger)] transition-colors"><Trash2 size={14}/></button>
-                      </div>
-                    </td>
+      ) : articles.length > 0 ? (
+        <>
+          <Card glass className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 text-[var(--on-surface-variant)] text-xs uppercase tracking-wider">
+                    <th className="text-left py-3 px-4 md:px-5 font-semibold">Title</th>
+                    <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Category</th>
+                    <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Status</th>
+                    <th className="text-left py-3 px-4 md:px-5 font-semibold hidden md:table-cell">Views</th>
+                    <th className="text-left py-3 px-4 md:px-5 font-semibold hidden sm:table-cell">Updated</th>
+                    <th className="text-right py-3 px-4 md:px-5 font-semibold">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {articles.map(a=>(
+                    <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-4 md:px-5 font-medium text-white">{truncate(a.title,40)}</td>
+                      <td className="py-3 px-4 md:px-5 text-xs text-[var(--on-surface-variant)] hidden sm:table-cell">
+                        {a.category_id ? categories.find(c=>c.id===a.category_id)?.name || <span className="italic text-[var(--on-surface-variant)]/50">Unknown</span> : <span className="italic text-[var(--on-surface-variant)]/50">None</span>}
+                      </td>
+                      <td className="py-3 px-4 md:px-5 hidden sm:table-cell">
+                        {a.is_published
+                          ? <Badge variant="success"><Eye size={10}/>Published</Badge>
+                          : <Badge variant="outline"><EyeOff size={10}/>Draft</Badge>
+                        }
+                      </td>
+                      <td className="py-3 px-4 md:px-5 text-[var(--on-surface-variant)] hidden md:table-cell">{a.view_count}</td>
+                      <td className="py-3 px-4 md:px-5 text-[var(--on-surface-variant)] hidden sm:table-cell text-xs">{timeAgo(a.updated_at)}</td>
+                      <td className="py-3 px-4 md:px-5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={()=>handleEdit(a)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--primary)] transition-colors"><Edit size={14}/></button>
+                          <button onClick={()=>handleDelete(a.id)} className="p-1.5 rounded-lg hover:bg-[var(--danger)]/10 text-[var(--danger)] transition-colors"><Trash2 size={14}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--on-surface-variant)]">
+              Showing {page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, total)} of {total}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft size={16} /> Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                Next <ChevronRight size={16} />
+              </Button>
+            </div>
           </div>
-        </Card>
+        </>
       ) : (
         <Card glass className="p-12 md:p-16 text-center">
           <div className="w-14 h-14 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center mx-auto mb-4">

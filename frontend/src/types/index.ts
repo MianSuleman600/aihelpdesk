@@ -213,6 +213,14 @@ export interface UserSettingsUpdate {
   notification_ticket_updates?: boolean;
 }
 
+// --- Paginated Response ---
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 // --- AI Feedback ---
 export interface AIFeedbackCreate {
   context_type: "chat" | "ticket";

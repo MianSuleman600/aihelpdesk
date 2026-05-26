@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
+const PAGE_SIZE = 20;
 const STATUS_FILTERS = ["", "open", "in_progress", "waiting", "resolved", "closed"];
 const PRIORITY_FILTERS = ["", "low", "medium", "high"];
 
@@ -24,6 +25,8 @@ export default function AdminTicketsPage() {
   const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -44,19 +47,18 @@ export default function AdminTicketsPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const t = await ticketsAPI.getAll({
+        const data = await ticketsAPI.getAll({
           status: (statusFilter as TicketStatus) || undefined,
+          priority: priorityFilter || undefined,
           assigned_to_me: assignedToMe || undefined,
+          unassigned: unassigned || undefined,
           category_id: categoryFilter || undefined,
-        });
-        let filtered = t;
-        if (priorityFilter) {
-          filtered = filtered.filter((tk) => tk.priority === priorityFilter);
-        }
-        if (unassigned) {
-          filtered = filtered.filter((tk) => !tk.assigned_to_id);
-        }
-        setTickets(filtered);
+          search: search || undefined,
+          skip: page * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        } as any);
+        setTickets(data.items);
+        setTotal(data.total);
       } catch (e) {
         console.error(e);
       } finally {
@@ -64,16 +66,7 @@ export default function AdminTicketsPage() {
       }
     };
     load();
-  }, [statusFilter, priorityFilter, categoryFilter, assignedToMe, unassigned]);
-
-  const searched = search
-    ? tickets.filter(
-        (t) =>
-          t.subject.toLowerCase().includes(search.toLowerCase()) ||
-          t.description.toLowerCase().includes(search.toLowerCase()) ||
-          t.id.toLowerCase().includes(search.toLowerCase())
-      )
-    : tickets;
+  }, [statusFilter, priorityFilter, categoryFilter, assignedToMe, unassigned, search, page]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
@@ -84,14 +77,14 @@ export default function AdminTicketsPage() {
             Ticket Queue
           </h1>
           <p className="text-sm text-[var(--on-surface-variant)] mt-1">
-            {searched.length} ticket{searched.length !== 1 ? "s" : ""} &middot; Manage, assign, and resolve support requests
+            {total} ticket{total !== 1 ? "s" : ""} &middot; Manage, assign, and resolve support requests
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => { setAssignedToMe(false); setUnassigned(false); setStatusFilter(""); setPriorityFilter(""); setCategoryFilter(""); setSearch(""); }}
+            onClick={() => { setAssignedToMe(false); setUnassigned(false); setStatusFilter(""); setPriorityFilter(""); setCategoryFilter(""); setSearch(""); setPage(0); }}
             className="text-xs"
           >
             <Filter size={13} /> Clear
@@ -106,12 +99,12 @@ export default function AdminTicketsPage() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             placeholder="Search tickets…"
             className="w-full py-2 pl-9 pr-8 rounded-lg bg-white/5 border border-[var(--outline-variant)]/50 text-sm text-[var(--on-surface)] placeholder-[var(--on-surface-variant)]/50 outline-none focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15 transition-all"
           />
           {search && (
-            <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] hover:text-white transition-colors">
+            <button onClick={() => { setSearch(""); setPage(0); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] hover:text-white transition-colors">
               <X size={14} />
             </button>
           )}
@@ -123,7 +116,7 @@ export default function AdminTicketsPage() {
               key={s}
               variant={statusFilter === s ? "default" : "ghost"}
               size="sm"
-              onClick={() => setStatusFilter(s)}
+              onClick={() => { setStatusFilter(s); setPage(0); }}
               className={`text-xs ${statusFilter === s ? "" : "text-[var(--on-surface-variant)]"}`}
             >
               {s ? s.replace(/_/g, " ") : "All"}
@@ -137,7 +130,7 @@ export default function AdminTicketsPage() {
               key={p}
               variant={priorityFilter === p ? "default" : "ghost"}
               size="sm"
-              onClick={() => setPriorityFilter(p)}
+              onClick={() => { setPriorityFilter(p); setPage(0); }}
               className={`text-xs ${priorityFilter === p ? "" : "text-[var(--on-surface-variant)]"}`}
             >
               {p ? p.charAt(0).toUpperCase() + p.slice(1) : "All Priority"}
@@ -149,7 +142,7 @@ export default function AdminTicketsPage() {
           <Button
             variant={assignedToMe ? "default" : "ghost"}
             size="sm"
-            onClick={() => { setAssignedToMe(!assignedToMe); setUnassigned(false); }}
+            onClick={() => { setAssignedToMe(!assignedToMe); setUnassigned(false); setPage(0); }}
             className={`flex items-center gap-1.5 text-xs ${assignedToMe ? "" : "text-[var(--on-surface-variant)]"}`}
           >
             <UserCheck size={14} /> Mine
@@ -157,7 +150,7 @@ export default function AdminTicketsPage() {
           <Button
             variant={unassigned ? "default" : "ghost"}
             size="sm"
-            onClick={() => { setUnassigned(!unassigned); setAssignedToMe(false); }}
+            onClick={() => { setUnassigned(!unassigned); setAssignedToMe(false); setPage(0); }}
             className={`flex items-center gap-1.5 text-xs ${unassigned ? "" : "text-[var(--on-surface-variant)]"}`}
           >
             <UserPlus size={14} /> Unassigned
@@ -166,7 +159,7 @@ export default function AdminTicketsPage() {
 
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
           className="py-1.5 px-2.5 rounded-lg bg-white/5 border border-[var(--outline-variant)]/50 text-sm text-[var(--on-surface)] outline-none focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15 transition-all cursor-pointer"
         >
           <option value="">All categories</option>
@@ -181,7 +174,7 @@ export default function AdminTicketsPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 size={28} className="animate-spin text-[var(--primary)]" />
         </div>
-      ) : searched.length > 0 ? (
+      ) : tickets.length > 0 ? (
         <Card className="bg-white/5 border-white/10 backdrop-blur-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -199,7 +192,7 @@ export default function AdminTicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {searched.map((t) => (
+                {tickets.map((t) => (
                   <tr
                     key={t.id}
                     className="border-b border-white/5 hover:bg-white/5 transition-colors group"
@@ -260,7 +253,9 @@ export default function AdminTicketsPage() {
                               try {
                                 await ticketsAPI.assign(t.id, { assigned_to_id: user!.id });
                                 const refreshed = await ticketsAPI.getAll({ status: (statusFilter as TicketStatus) || undefined });
-                                setTickets(refreshed);
+                                setTickets(refreshed.items);
+                                setTotal(refreshed.total);
+                                setPage(0);
                               } catch (e) { console.error(e); }
                             }}
                             className="p-1.5 rounded-md text-xs text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
@@ -275,7 +270,9 @@ export default function AdminTicketsPage() {
                               try {
                                 await ticketsAPI.update(t.id, { status: "closed" } as any);
                                 const refreshed = await ticketsAPI.getAll({ status: (statusFilter as TicketStatus) || undefined });
-                                setTickets(refreshed);
+                                setTickets(refreshed.items);
+                                setTotal(refreshed.total);
+                                setPage(0);
                               } catch (e) { console.error(e); }
                             }}
                             className="p-1.5 rounded-md text-xs text-[var(--success)] hover:bg-[var(--success)]/10 transition-colors"
@@ -297,6 +294,32 @@ export default function AdminTicketsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+            <span className="text-xs text-[var(--on-surface-variant)]">
+              {total} ticket{total !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                className="text-xs text-[var(--on-surface-variant)]"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page * PAGE_SIZE + PAGE_SIZE >= total}
+                onClick={() => setPage((p) => p + 1)}
+                className="text-xs text-[var(--on-surface-variant)]"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </Card>
       ) : (

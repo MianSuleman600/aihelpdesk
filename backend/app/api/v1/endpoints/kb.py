@@ -5,14 +5,14 @@ Knowledge Base endpoints: CRUD articles, search, categories.
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, timezone
 
 from app.db.session import get_db
 from app.models.models import KBArticle, Category, User, UserRole
 from app.schemas.schemas import (
     KBArticleCreate, KBArticleUpdate, KBArticleResponse,
-    CategoryCreate, CategoryResponse,
+    CategoryCreate, CategoryResponse, PaginatedResponse,
 )
 from app.api.deps import get_current_user, require_agent_or_admin
 
@@ -44,7 +44,7 @@ async def create_category(
 
 # --- Articles ---
 
-@router.get("/articles", response_model=List[KBArticleResponse])
+@router.get("/articles")
 async def list_articles(
     search: Optional[str] = Query(None, description="Search keyword"),
     category_id: Optional[str] = Query(None),
@@ -52,25 +52,38 @@ async def list_articles(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ):
-    """List and search KB articles (published only for users)."""
-    query = select(KBArticle).where(KBArticle.is_published == True)
+    """List and search KB articles. Agents/Admins see all; users see published only."""
+    query = select(KBArticle)
+    count_q = select(func.count(KBArticle.id))
+
+    if current_user.role not in (UserRole.ADMIN, UserRole.AGENT):
+        query = query.where(KBArticle.is_published == True)
+        count_q = count_q.where(KBArticle.is_published == True)
 
     if search:
+        pattern = f"%{search}%"
         query = query.where(
-            or_(
-                KBArticle.title.ilike(f"%{search}%"),
-                KBArticle.body.ilike(f"%{search}%"),
-            )
+            or_(KBArticle.title.ilike(pattern), KBArticle.body.ilike(pattern))
+        )
+        count_q = count_q.where(
+            or_(KBArticle.title.ilike(pattern), KBArticle.body.ilike(pattern))
         )
     if category_id:
         query = query.where(KBArticle.category_id == category_id)
+        count_q = count_q.where(KBArticle.category_id == category_id)
     if tag:
         query = query.where(KBArticle.tags.any(tag))
 
+    total_result = await db.execute(count_q)
+    total = total_result.scalar() or 0
+
     query = query.order_by(KBArticle.updated_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    items = result.scalars().all()
+
+    return PaginatedResponse(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.get("/articles/{article_id}", response_model=KBArticleResponse)

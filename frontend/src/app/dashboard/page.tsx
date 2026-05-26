@@ -52,11 +52,11 @@ export default function DashboardPage() {
         const [a, t, n] = await Promise.allSettled([
           kbAPI.getArticles({ limit: 4 }),
           ticketsAPI.getAll({ limit: 5 }),
-          notificationsAPI.getAll(true),
+          notificationsAPI.getAll({ unread_only: true }),
         ]);
-        if (a.status === "fulfilled") setArticles(a.value);
-        if (t.status === "fulfilled") setTickets(t.value);
-        if (n.status === "fulfilled") setNotifications(n.value);
+        if (a.status === "fulfilled") setArticles(a.value.items);
+        if (t.status === "fulfilled") setTickets(t.value.items);
+        if (n.status === "fulfilled") setNotifications(n.value.items);
       } catch { /* empty */ } finally {
         setLoading(false);
       }

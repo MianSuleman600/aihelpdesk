@@ -23,9 +23,17 @@ class Settings(BaseSettings):
     # JWT Authentication
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        object.__setattr__(self, '_jwt_secret_cache', None)
 
     @property
     def jwt_secret(self) -> str:
+        cached = object.__getattribute__(self, '_jwt_secret_cache')
+        if cached is not None:
+            return cached
         if not self.SECRET_KEY or self.SECRET_KEY == "your-super-secret-key-change-in-production":
             import warnings
             generated = secrets.token_urlsafe(32)
@@ -35,9 +43,10 @@ class Settings(BaseSettings):
                 RuntimeWarning,
                 stacklevel=1,
             )
+            object.__setattr__(self, '_jwt_secret_cache', generated)
             return generated
+        object.__setattr__(self, '_jwt_secret_cache', self.SECRET_KEY)
         return self.SECRET_KEY
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # OpenAI
     OPENAI_API_KEY: str = ""

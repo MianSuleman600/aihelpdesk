@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { kbAPI } from "@/lib/api";
 import { timeAgo, truncate, stripHtml } from "@/lib/utils";
 import type { KBArticle, Category } from "@/types";
-import { Search, BookOpen, Eye, Clock, Tag, Filter, X, ArrowUpRight } from "lucide-react";
+import { Search, BookOpen, Eye, Clock, Tag, Filter, X, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,22 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
+const PER_PAGE = 12;
+
 export default function KBBrowsePage() {
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
   const [articles, setArticles] = useState<KBArticle[]>([]);
+  const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, selectedCategory]);
 
   useEffect(() => {
     const load = async () => {
@@ -31,11 +39,12 @@ export default function KBBrowsePage() {
           kbAPI.getArticles({
             search: search || undefined,
             category_id: selectedCategory || undefined,
-            limit: 50,
+            skip: page * PER_PAGE,
+            limit: PER_PAGE,
           }),
           kbAPI.getCategories(),
         ]);
-        if (arts.status === "fulfilled") setArticles(arts.value);
+        if (arts.status === "fulfilled") { setArticles(arts.value.items); setTotal(arts.value.total); }
         if (cats.status === "fulfilled") setCategories(cats.value);
       } catch (e) {
         console.error(e);
@@ -44,7 +53,9 @@ export default function KBBrowsePage() {
       }
     };
     load();
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, page]);
+
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -127,7 +138,7 @@ export default function KBBrowsePage() {
       ) : articles.length > 0 ? (
         <>
           <p className="text-sm text-[var(--on-surface-variant)]">
-            {articles.length} article{articles.length !== 1 ? "s" : ""} found
+            {total} article{total !== 1 ? "s" : ""} found
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((a, i) => (
@@ -179,6 +190,19 @@ export default function KBBrowsePage() {
                 </Card>
               </Link>
             ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--on-surface-variant)]">
+              Showing {page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, total)} of {total}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft size={16} /> Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                Next <ChevronRight size={16} />
+              </Button>
+            </div>
           </div>
         </>
       ) : (
