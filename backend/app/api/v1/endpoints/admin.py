@@ -9,14 +9,14 @@ from typing import List, Optional
 
 from app.db.session import get_db
 from app.models.models import User, UserRole, Ticket, KBArticle
-from app.schemas.schemas import UserResponse
+from app.schemas.schemas import UserResponse, PaginatedResponse
 from app.api.deps import require_admin, require_agent_or_admin
 from app.services.audit_service import AuditService
 
 router = APIRouter()
 
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/users")
 async def list_users(
     role: Optional[UserRole] = Query(None),
     search: Optional[str] = Query(None),
@@ -25,19 +25,24 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_agent_or_admin),
 ):
-    """List all users with optional role filter and search (Admin/Agent)."""
+    """List all users with optional role filter, search, and pagination (Admin/Agent)."""
     query = select(User)
+    count_q = select(func.count(User.id))
 
     if role:
         query = query.where(User.role == role)
+        count_q = count_q.where(User.role == role)
     if search:
-        query = query.where(
-            User.name.ilike(f"%{search}%") | User.email.ilike(f"%{search}%")
-        )
+        q_filter = User.name.ilike(f"%{search}%") | User.email.ilike(f"%{search}%")
+        query = query.where(q_filter)
+        count_q = count_q.where(q_filter)
 
+    total = await db.scalar(count_q) or 0
     query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    users = result.scalars().all()
+
+    return PaginatedResponse(items=users, total=total)
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)

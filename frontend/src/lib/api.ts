@@ -62,6 +62,14 @@ export const kbAPI = {
     return apiClient.post<Category>(ENDPOINTS.kb.createCategory, payload);
   },
 
+  updateCategory: async (id: string, payload: { name?: string; description?: string }): Promise<Category> => {
+    return apiClient.put<Category>(`/kb/categories/${id}`, payload);
+  },
+
+  deleteCategory: async (id: string): Promise<void> => {
+    return apiClient.delete(`/kb/categories/${id}`);
+  },
+
   getArticles: async (params?: {
     search?: string;
     category_id?: string;

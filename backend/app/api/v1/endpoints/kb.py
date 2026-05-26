@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.models import KBArticle, Category, User, UserRole
 from app.schemas.schemas import (
     KBArticleCreate, KBArticleUpdate, KBArticleResponse,
-    CategoryCreate, CategoryResponse, PaginatedResponse,
+    CategoryCreate, CategoryUpdate, CategoryResponse, PaginatedResponse,
 )
 from app.api.deps import get_current_user, require_agent_or_admin
 
@@ -40,6 +40,44 @@ async def create_category(
     await db.flush()
     await db.refresh(category)
     return category
+
+
+@router.put("/categories/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_id: str,
+    data: CategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_agent_or_admin),
+):
+    """Update a category (Agent/Admin only)."""
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(category, field, value)
+    await db.flush()
+    await db.refresh(category)
+    return category
+
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_category(
+    category_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_agent_or_admin),
+):
+    """Delete a category (Agent/Admin only)."""
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    # Check for related articles
+    article_count = await db.scalar(select(func.count(KBArticle.id)).where(KBArticle.category_id == category_id))
+    if article_count:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot delete category: {article_count} article(s) reference it")
+    await db.delete(category)
+    await db.flush()
 
 
 # --- Articles ---

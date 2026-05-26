@@ -75,9 +75,6 @@ export default function TicketsListPage() {
               : "Track and manage your support requests"}
           </p>
         </div>
-        <Button className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white" onClick={() => setShowNewTicket(true)}>
-          <Plus size={16} /> New Ticket
-        </Button>
       </div>
 
       {/* Filters */}

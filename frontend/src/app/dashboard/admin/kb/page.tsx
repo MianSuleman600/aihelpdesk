@@ -7,7 +7,7 @@ import { kbAPI } from "@/lib/api"
 import { timeAgo, truncate } from "@/lib/utils"
 import type { KBArticle, Category } from "@/types"
 import {
-  Plus, Edit, Trash2, Eye, EyeOff, Loader2, BookOpen, Search, X, ChevronLeft, ChevronRight
+  Plus, Edit, Trash2, Eye, EyeOff, Loader2, BookOpen, Search, X, ChevronLeft, ChevronRight, FolderPlus, Tag, Save
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,10 +31,14 @@ export default function AdminKBPage() {
   const [form, setForm] = useState({title:"",body:"",tags:"",is_published:false,category_id:""})
   const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
+  const [showCatManager, setShowCatManager] = useState(false)
+  const [catForm, setCatForm] = useState({name:"",description:""})
+  const [editingCatId, setEditingCatId] = useState<string|null>(null)
+  const [catSaving, setCatSaving] = useState(false)
 
   useEffect(() => {
     if (user?.role!=="admin"&&user?.role!=="agent") { router.replace("/dashboard"); return; }
-    kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
+    loadCategories()
   }, [user, router])
 
   useEffect(() => {
@@ -72,6 +76,34 @@ export default function AdminKBPage() {
     setEditingArticle(a); setForm({title:a.title,body:a.body,tags:a.tags.join(", "),is_published:a.is_published,category_id:a.category_id||""}); setShowEditor(true)
   }
 
+  const loadCategories = () => {
+    kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
+  }
+
+  const handleCatSave = async () => {
+    if (!catForm.name.trim()) return
+    setCatSaving(true)
+    try {
+      if (editingCatId) {
+        await kbAPI.updateCategory(editingCatId, { name: catForm.name.trim(), description: catForm.description.trim() || undefined })
+      } else {
+        await kbAPI.createCategory({ name: catForm.name.trim(), description: catForm.description.trim() || undefined })
+      }
+      setCatForm({name:"",description:""})
+      setEditingCatId(null)
+      loadCategories()
+    } catch (e) { console.error(e) } finally { setCatSaving(false) }
+  }
+
+  const handleCatEdit = (c: Category) => {
+    setEditingCatId(c.id); setCatForm({name:c.name,description:c.description||""})
+  }
+
+  const handleCatDelete = async (id: string) => {
+    if (!confirm("Delete this category? Articles using it must be reassigned first.")) return
+    try { await kbAPI.deleteCategory(id); loadCategories() } catch (e) { console.error(e) }
+  }
+
   const totalPages = Math.ceil(total / PER_PAGE)
 
   return (
@@ -81,9 +113,14 @@ export default function AdminKBPage() {
           <h1 className="text-xl md:text-2xl font-bold text-white">Manage Knowledge Base</h1>
           <p className="text-sm text-[var(--on-surface-variant)] mt-1">{total} articles</p>
         </div>
-        <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false,category_id:""});setShowEditor(true)}}>
-          <Plus size={16}/>New Article
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={()=>{setCatForm({name:"",description:""});setEditingCatId(null);setShowCatManager(true)}}>
+            <Tag size={16}/>Categories
+          </Button>
+          <Button onClick={()=>{setEditingArticle(null);setForm({title:"",body:"",tags:"",is_published:false,category_id:""});setShowEditor(true)}}>
+            <Plus size={16}/>New Article
+          </Button>
+        </div>
       </div>
 
       {showEditor && (
@@ -232,6 +269,59 @@ export default function AdminKBPage() {
             <Plus size={16}/>Create first article
           </Button>
         </Card>
+      )}
+
+      {/* Category Manager Dialog */}
+      {showCatManager && (
+        <Dialog open={showCatManager} onClose={() => setShowCatManager(false)}>
+          <DialogContent title="Manage Categories" onClose={() => setShowCatManager(false)}>
+            <div className="space-y-5">
+              {/* Add / Edit form */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="catName">{editingCatId ? "Edit name" : "New category name"}</Label>
+                  <Input id="catName" value={catForm.name} onChange={e=>setCatForm({...catForm,name:e.target.value})} placeholder="Category name" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="catDesc">Description</Label>
+                  <Input id="catDesc" value={catForm.description} onChange={e=>setCatForm({...catForm,description:e.target.value})} placeholder="Optional" />
+                </div>
+                <Button onClick={handleCatSave} disabled={catSaving||!catForm.name.trim()}>
+                  {catSaving ? <Loader2 size={14} className="animate-spin"/> : editingCatId ? <Save size={14}/> : <Plus size={14}/>}
+                  {catSaving ? "Saving…" : editingCatId ? "Update" : "Add"}
+                </Button>
+                {editingCatId && (
+                  <Button variant="secondary" onClick={()=>{setEditingCatId(null);setCatForm({name:"",description:""})}}>
+                    <X size={14}/>
+                  </Button>
+                )}
+              </div>
+
+              {/* Category list */}
+              <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                {categories.length === 0 ? (
+                  <p className="text-sm text-[var(--on-surface-variant)] text-center py-8">No categories yet</p>
+                ) : (
+                  categories.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+                      <FolderPlus size={16} className="text-[var(--primary)] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{c.name}</p>
+                        {c.description && <p className="text-[11px] text-[var(--on-surface-variant)] truncate">{c.description}</p>}
+                      </div>
+                      <button onClick={()=>handleCatEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--primary)] transition-colors shrink-0" title="Edit">
+                        <Edit size={13}/>
+                      </button>
+                      <button onClick={()=>handleCatDelete(c.id)} className="p-1.5 rounded-lg hover:bg-[var(--danger)]/10 text-[var(--danger)] transition-colors shrink-0" title="Delete">
+                        <Trash2 size={13}/>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
