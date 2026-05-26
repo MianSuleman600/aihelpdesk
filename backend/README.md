@@ -5,7 +5,7 @@
 ```bash
 # 1. Create virtual environment
 python -m venv venv
-venv\Scripts\activate  # Windows
+.venv\Scripts\Activate.ps1  
 
 # 2. Install dependencies
 pip install -r requirements.txt

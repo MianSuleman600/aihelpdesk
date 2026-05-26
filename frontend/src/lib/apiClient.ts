@@ -83,7 +83,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const url = new URL(BASE_URL + endpoint);
 
   if (params) {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+    });
   }
 
   const token = getAccessToken();
@@ -123,7 +125,15 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
       if (!retryRes.ok) {
         const err = await retryRes.json().catch(() => ({}));
-        throw new ApiError(retryRes.status, err.message || 'Request failed', err.errors);
+        let message = 'Request failed';
+        if (Array.isArray(err.detail)) {
+          message = err.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join(', ');
+        } else if (typeof err.detail === 'string') {
+          message = err.detail;
+        } else if (err.message) {
+          message = err.message;
+        }
+        throw new ApiError(retryRes.status, message, err.errors);
       }
 
       if (stream) return retryRes as unknown as T;
@@ -133,7 +143,24 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.message || err.detail || 'Request failed', err.errors);
+    let message = 'Request failed';
+    let errors: Record<string, string[]> | undefined = undefined;
+
+    if (Array.isArray(err.detail)) {
+      message = err.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join(', ');
+      errors = {};
+      for (const e of err.detail) {
+        const field: string = (e.loc ?? []).filter((l: string) => l !== 'body' && l !== 'query').join('.') || 'unknown';
+        if (!errors[field]) errors[field] = [];
+        if (e.msg) errors[field].push(e.msg);
+      }
+    } else if (typeof err.detail === 'string') {
+      message = err.detail;
+    } else if (err.message) {
+      message = err.message;
+    }
+
+    throw new ApiError(res.status, message, errors);
   }
 
   if (stream) return res as unknown as T;

@@ -1,8 +1,9 @@
-import { apiClient, tokenUtils } from './apiClient';
+import { apiClient, API_BASE_URL, tokenUtils } from './apiClient';
 import { ENDPOINTS } from '@/constants/endpoints';
 import type {
   User, UserBrief, Category, KBArticle, KBArticleCreate,
   Ticket, TicketCreate, TicketUpdate, TicketAssign, TicketMessage,
+  TicketEvent,
   AIChatResponse, Notification, AnalyticsOverview, AIFeedbackCreate,
   TokenResponse, UploadedDocument, DocumentListResponse,
   UserSettings, UserSettingsUpdate, PaginatedResult,
@@ -95,6 +96,26 @@ export const kbAPI = {
   deleteArticle: async (id: string): Promise<void> => {
     return apiClient.delete(ENDPOINTS.kb.delete(id));
   },
+
+  uploadAttachment: async (articleId: string, file: File): Promise<{ id: string; file_name: string; file_url: string; file_size: number }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE_URL}/kb/articles/${articleId}/attachments`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenUtils.get()}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    return res.json();
+  },
+
+  getAttachments: async (articleId: string): Promise<{ id: string; file_name: string; file_url: string; file_size: number; created_at: string }[]> => {
+    return apiClient.get(`/kb/articles/${articleId}/attachments`);
+  },
+
+  deleteAttachment: async (attachmentId: string): Promise<void> => {
+    return apiClient.delete(`/kb/attachments/${attachmentId}`);
+  },
 };
 
 export const ticketsAPI = {
@@ -150,6 +171,30 @@ export const ticketsAPI = {
     payload: { message: string; is_internal?: boolean },
   ): Promise<TicketMessage> => {
     return apiClient.post<TicketMessage>(ENDPOINTS.tickets.messages(ticketId), payload);
+  },
+
+  uploadAttachment: async (ticketId: string, file: File): Promise<{ id: string; file_name: string; file_url: string; file_size: number }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/attachments`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenUtils.get()}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    return res.json();
+  },
+
+  getAttachments: async (ticketId: string): Promise<{ id: string; file_name: string; file_url: string; file_size: number; created_at: string }[]> => {
+    return apiClient.get(`/tickets/${ticketId}/attachments`);
+  },
+
+  deleteAttachment: async (attachmentId: string): Promise<void> => {
+    return apiClient.delete(`/tickets/attachments/${attachmentId}`);
+  },
+
+  getEvents: async (ticketId: string): Promise<TicketEvent[]> => {
+    return apiClient.get<TicketEvent[]>(`/tickets/${ticketId}/events`);
   },
 };
 

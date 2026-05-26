@@ -16,7 +16,7 @@ from app.services.audit_service import AuditService
 router = APIRouter()
 
 
-@router.get("/users")
+@router.get("/users", response_model=PaginatedResponse[UserResponse])
 async def list_users(
     role: Optional[UserRole] = Query(None),
     search: Optional[str] = Query(None),

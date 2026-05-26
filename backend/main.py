@@ -77,6 +77,8 @@ app.add_middleware(
 
 # Serve uploaded files
 upload_dir = settings.UPLOAD_DIR or "uploads"
+for sub in ["documents", "kb", "tickets"]:
+    os.makedirs(os.path.join(upload_dir, sub), exist_ok=True)
 os.makedirs(upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 

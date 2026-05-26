@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 10
     ALLOWED_EXTENSIONS: list = [".pdf", ".docx", ".txt"]
     UPLOAD_DIR: str = "uploads/documents"
+    KB_UPLOAD_DIR: str = "uploads/kb"
+    TICKET_UPLOAD_DIR: str = "uploads/tickets"
 
     # Supabase
     SUPABASE_URL: str = "https://your-project.supabase.co"

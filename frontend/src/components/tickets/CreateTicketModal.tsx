@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Send, Loader2, AlertCircle } from "lucide-react"
+import { Send, Loader2, AlertCircle, Paperclip, X } from "lucide-react"
 
 interface Props {
   open: boolean
@@ -26,6 +26,7 @@ export function CreateTicketModal({ open, onClose }: Props) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [files, setFiles] = useState<File[]>([])
 
   useEffect(() => {
     if (open) {
@@ -34,6 +35,7 @@ export function CreateTicketModal({ open, onClose }: Props) {
       setPriority("medium")
       setCategoryId("")
       setError("")
+      setFiles([])
       kbAPI.getCategories().then(setCategories).catch((e) => console.error(e))
     }
   }, [open])
@@ -53,6 +55,12 @@ export function CreateTicketModal({ open, onClose }: Props) {
         priority,
         category_id: categoryId || undefined,
       })
+      // Upload attachments
+      for (const file of files) {
+        try {
+          await ticketsAPI.uploadAttachment(ticket.id, file)
+        } catch { /* individual file failure */ }
+      }
       onClose()
       router.push(`/dashboard/tickets/${ticket.id}`)
     } catch (err: unknown) {
@@ -95,6 +103,37 @@ export function CreateTicketModal({ open, onClose }: Props) {
               rows={4}
               required
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Attachments</Label>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--outline-variant)] bg-[rgba(255,255,255,0.04)] text-sm text-[var(--on-surface-variant)] hover:border-primary/30 cursor-pointer transition-colors">
+                <Paperclip size={14} />
+                <span>Choose files</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.files || [])
+                    setFiles((prev) => [...prev, ...selected])
+                  }}
+                />
+              </label>
+            </div>
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {files.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-[var(--on-surface-variant)]">
+                    <span className="truncate max-w-[150px]">{f.name}</span>
+                    <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} className="text-[var(--danger)] hover:text-red-400">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">

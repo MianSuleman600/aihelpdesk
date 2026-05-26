@@ -6,11 +6,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useWebSocket } from "@/context/WebSocketContext";
 import { timeAgo, formatDateTime, getInitials } from "@/lib/utils";
 import { TICKET_STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/constants";
-import type { Ticket, TicketMessage, UserBrief } from "@/types";
+import type { Ticket, TicketMessage, TicketEvent, UserBrief } from "@/types";
 import {
   ArrowLeft, Send, Sparkles, Loader2, MessageSquare, Clock,
   AlertCircle, UserCheck, UserPlus, X, Check, Lock,
-  FileEdit, Ban, RotateCcw, ChevronDown
+  FileEdit, Ban, RotateCcw, History, Circle, User, Tag, ArrowRight
 } from "lucide-react";
 import { playNotificationSound } from "@/lib/websocket";
 
@@ -52,6 +52,8 @@ export default function TicketDetailPage() {
   const [assignLoading, setAssignLoading] = useState(false);
   const [agents, setAgents] = useState<UserBrief[]>([]);
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
+  const [events, setEvents] = useState<TicketEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { subscribe, unsubscribe, on } = useWebSocket();
@@ -68,7 +70,16 @@ export default function TicketDetailPage() {
     finally { setLoading(false); }
   }, [id]);
 
+  const loadEvents = useCallback(async () => {
+    try {
+      const ev = await ticketsAPI.getEvents(id);
+      setEvents(ev);
+    } catch { /* non-critical */ }
+    finally { setEventsLoading(false); }
+  }, [id]);
+
   useEffect(() => { loadTicket(); }, [loadTicket]);
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
   // Subscribe to real-time messages via WebSocket
   useEffect(() => {
@@ -519,6 +530,53 @@ export default function TicketDetailPage() {
               </button>
             </div>
           )}
+
+          {/* Timeline */}
+          <div className="glass-card p-5 animate-fade-in">
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--on-surface-variant)]/60 flex items-center gap-1 mb-4">
+              <History size={14}/> Timeline
+            </h3>
+            {eventsLoading ? (
+              <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin text-[var(--on-surface-variant)]"/></div>
+            ) : events.length === 0 ? (
+              <p className="text-xs text-[var(--on-surface-variant)] text-center py-4">No events recorded.</p>
+            ) : (
+              <div className="relative space-y-0">
+                {events.map((ev, i) => {
+                  let icon = <Circle size={10} className="text-[var(--primary)]"/>;
+                  let color = "border-[var(--primary)]/20";
+                  switch (ev.event_type) {
+                    case "created": icon = <Circle size={10} className="text-[var(--success)]"/>; color = "border-[var(--success)]/20"; break;
+                    case "closed": icon = <X size={10} className="text-[var(--danger)]"/>; color = "border-[var(--danger)]/20"; break;
+                    case "reopened": icon = <RotateCcw size={10} className="text-[var(--warning)]"/>; color = "border-[var(--warning)]/20"; break;
+                    case "assigned": icon = <User size={10} className="text-[var(--primary)]"/>; color = "border-[var(--primary)]/20"; break;
+                    case "status_changed": icon = <ArrowRight size={10} className="text-[var(--warning)]"/>; color = "border-[var(--warning)]/20"; break;
+                    case "priority_changed": icon = <Tag size={10} className="text-[var(--primary)]"/>; color = "border-[var(--primary)]/20"; break;
+                  }
+                  let label = ev.event_type.replace(/_/g, " ");
+                  if (ev.event_type === "status_changed" && ev.old_value && ev.new_value) {
+                    label = `${ev.old_value} → ${ev.new_value}`;
+                  } else if (ev.event_type === "assigned" && ev.description) {
+                    label = ev.description;
+                  }
+                  return (
+                    <div key={ev.id} className="flex gap-3 pb-4 last:pb-0">
+                      <div className="flex flex-col items-center">
+                        <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
+                        {i < events.length - 1 && <div className="w-px flex-1 bg-white/5 mt-1"/>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white capitalize font-medium">{label}</p>
+                        <p className="text-[10px] text-[var(--on-surface-variant)] mt-0.5">
+                          {ev.user_name ? `${ev.user_name} · ` : ""}{timeAgo(ev.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

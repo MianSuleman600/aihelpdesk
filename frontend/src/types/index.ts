@@ -121,6 +121,18 @@ export interface TicketMessage {
   sender_name?: string | null;
 }
 
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  user_id?: string | null;
+  event_type: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  description?: string | null;
+  created_at: string;
+  user_name?: string | null;
+}
+
 // --- AI Chat ---
 export interface ChatSession {
   id: string;

@@ -2,19 +2,24 @@
 Knowledge Base endpoints: CRUD articles, search, categories.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import os
+import uuid
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from typing import Optional, List, Any
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.models.models import KBArticle, Category, User, UserRole
+from app.models.models import KBArticle, Category, KBAttachment, User, UserRole
 from app.schemas.schemas import (
     KBArticleCreate, KBArticleUpdate, KBArticleResponse,
     CategoryCreate, CategoryUpdate, CategoryResponse, PaginatedResponse,
+    KBAttachmentResponse, KBAttachmentUploadResponse,
 )
 from app.api.deps import get_current_user, require_agent_or_admin
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -80,9 +85,89 @@ async def delete_category(
     await db.flush()
 
 
+# --- KB Attachments ---
+
+KB_UPLOAD_DIR = settings.KB_UPLOAD_DIR or "uploads/kb"
+
+
+@router.post("/articles/{article_id}/attachments", response_model=KBAttachmentUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_kb_attachment(
+    article_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_agent_or_admin),
+):
+    """Upload a file attachment to a KB article (Agent/Admin only)."""
+    # Validate article exists
+    result = await db.execute(select(KBArticle).where(KBArticle.id == article_id))
+    article = result.scalar_one_or_none()
+    if not article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+
+    # Validate file
+    ext = os.path.splitext(file.filename or "unknown")[1].lower()
+    if ext not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type: {ext}")
+    if (file.size or 0) > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"File too large (max {settings.MAX_UPLOAD_SIZE_MB}MB)")
+
+    # Save file
+    os.makedirs(KB_UPLOAD_DIR, exist_ok=True)
+    file_id = str(uuid.uuid4())
+    safe_name = f"{file_id}{ext}"
+    file_path = os.path.join(KB_UPLOAD_DIR, safe_name)
+    content = await file.read()
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(content)
+
+    # Create DB record
+    attachment = KBAttachment(
+        article_id=article_id,
+        file_url=f"/uploads/kb/{safe_name}",
+        file_name=file.filename or safe_name,
+        file_type=ext,
+        file_size=len(content),
+    )
+    db.add(attachment)
+    await db.flush()
+    await db.refresh(attachment)
+    return attachment
+
+
+@router.get("/articles/{article_id}/attachments", response_model=List[KBAttachmentResponse])
+async def list_kb_attachments(
+    article_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """List all attachments for a KB article."""
+    result = await db.execute(
+        select(KBAttachment).where(KBAttachment.article_id == article_id).order_by(KBAttachment.created_at)
+    )
+    return result.scalars().all()
+
+
+@router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_kb_attachment(
+    attachment_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_agent_or_admin),
+):
+    """Delete a KB article attachment (Agent/Admin only)."""
+    result = await db.execute(select(KBAttachment).where(KBAttachment.id == attachment_id))
+    attachment = result.scalar_one_or_none()
+    if not attachment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+    # Delete file from disk
+    file_path = os.path.join(KB_UPLOAD_DIR, os.path.basename(attachment.file_url))
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    await db.delete(attachment)
+    await db.flush()
+
+
 # --- Articles ---
 
-@router.get("/articles")
+@router.get("/articles", response_model=PaginatedResponse[KBArticleResponse])
 async def list_articles(
     search: Optional[str] = Query(None, description="Search keyword"),
     category_id: Optional[str] = Query(None),

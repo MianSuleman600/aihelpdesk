@@ -4,10 +4,10 @@ Includes input sanitization and length constraints.
 """
 
 import re
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List, Generic, TypeVar
 from datetime import datetime
-from app.models.models import UserRole, TicketStatus, Priority, FeedbackRating
+from app.models.models import UserRole, TicketStatus, Priority, FeedbackRating, TicketEventType
 
 T = TypeVar("T")
 
@@ -90,16 +90,14 @@ class UserResponse(BaseModel):
     is_active: bool = Field(True, description="Account active status")
     created_at: datetime = Field(..., description="Account creation date")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100, description="Full name")
     email: Optional[EmailStr] = Field(None, description="Email address")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AuthResponse(BaseModel):
@@ -134,8 +132,7 @@ class CategoryResponse(BaseModel):
     icon: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================
@@ -182,9 +179,28 @@ class KBArticleResponse(BaseModel):
     published_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    attachments: List["KBAttachmentResponse"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class KBAttachmentResponse(BaseModel):
+    id: str
+    article_id: str
+    file_url: str
+    file_name: str
+    file_type: str
+    file_size: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class KBAttachmentUploadResponse(BaseModel):
+    id: str
+    file_name: str
+    file_url: str
+    file_size: int
 
 
 # ============================================================
@@ -216,8 +232,7 @@ class UserBrief(BaseModel):
     email: str
     role: UserRole
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TicketResponse(BaseModel):
@@ -234,9 +249,35 @@ class TicketResponse(BaseModel):
     resolved_at: Optional[datetime] = None
     created_by: Optional[UserBrief] = None
     assigned_to: Optional[UserBrief] = None
+    attachments: List["TicketAttachmentResponse"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketAttachmentResponse(BaseModel):
+    id: str
+    ticket_id: str
+    file_url: str
+    file_name: str
+    file_type: str
+    file_size: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketEventResponse(BaseModel):
+    id: str
+    ticket_id: str
+    user_id: Optional[str]
+    event_type: str
+    old_value: Optional[str]
+    new_value: Optional[str]
+    description: Optional[str]
+    created_at: datetime
+    user_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TicketMessageCreate(BaseModel):
@@ -259,8 +300,7 @@ class TicketMessageResponse(BaseModel):
     created_at: datetime
     sender_name: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TicketAssign(BaseModel):
@@ -284,8 +324,7 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DocumentListResponse(BaseModel):
@@ -354,8 +393,7 @@ class ChatSessionResponse(BaseModel):
     updated_at: datetime
     message_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatMessageResponse(BaseModel):
@@ -366,8 +404,7 @@ class ChatMessageResponse(BaseModel):
     sources: Optional[list] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AIFeedbackCreate(BaseModel):
@@ -386,8 +423,7 @@ class AIFeedbackResponse(BaseModel):
     rating: FeedbackRating
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================
@@ -402,8 +438,7 @@ class NotificationResponse(BaseModel):
     is_read: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================
@@ -416,8 +451,7 @@ class UserSettingsResponse(BaseModel):
     notification_ticket_updates: bool = False
     theme: str = "system"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSettingsUpdate(BaseModel):

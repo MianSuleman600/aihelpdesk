@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     Column, String, Text, Boolean, Integer, DateTime,
-    ForeignKey, Enum as SQLEnum, JSON, ARRAY
+    ForeignKey, Enum as SQLEnum, JSON
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -116,7 +116,7 @@ class KBArticle(Base):
     title = Column(String(300), nullable=False, index=True)
     body = Column(Text, nullable=False)
     category_id = Column(String, ForeignKey("categories.id"), nullable=True)
-    tags = Column(ARRAY(String), default=list)
+    tags = Column(JSON, default=list)
     created_by_id = Column(String, ForeignKey("users.id"), nullable=False)
     is_published = Column(Boolean, default=False)
     view_count = Column(Integer, default=0)
@@ -166,6 +166,7 @@ class Ticket(Base):
     assigned_to_user = relationship("User", foreign_keys=[assigned_to_id], back_populates="assigned_tickets")
     messages = relationship("TicketMessage", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin", order_by="TicketMessage.created_at")
     attachments = relationship("TicketAttachment", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin")
+    events = relationship("TicketEvent", back_populates="ticket", cascade="all, delete-orphan", lazy="selectin", order_by="TicketEvent.created_at")
 
     @property
     def created_by(self):
@@ -311,3 +312,36 @@ class AuditLog(Base):
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
+class TicketEventType(str, enum.Enum):
+    CREATED = "created"
+    STATUS_CHANGED = "status_changed"
+    ASSIGNED = "assigned"
+    UNASSIGNED = "unassigned"
+    PRIORITY_CHANGED = "priority_changed"
+    CATEGORY_CHANGED = "category_changed"
+    REOPENED = "reopened"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+    NOTE_ADDED = "note_added"
+
+
+class TicketEvent(Base):
+    """
+    Tracks status/assignment/priority changes on tickets for timeline view.
+    """
+    __tablename__ = "ticket_events"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    ticket_id = Column(String, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    event_type = Column(SQLEnum(TicketEventType), nullable=False)
+    old_value = Column(String(100), nullable=True)
+    new_value = Column(String(100), nullable=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+    # Relationships
+    ticket = relationship("Ticket", lazy="selectin")
+    user = relationship("User", lazy="selectin")
